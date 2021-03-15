@@ -1,3 +1,10 @@
+/*
+ * @author: shenke
+ * @date: 2021/3/12
+ * @project: HuaWei_CodeCraft_2021
+ * @desp:
+ */
+
 #include <bits/stdc++.h>
 
 using std::string;
@@ -26,6 +33,11 @@ struct Request {
 };
 
 struct PurchasedServer {
+    PurchasedServer(Server *server, uint16_t remainCpuCoreA, uint16_t remainCpuCoreB,
+                    uint16_t remainMemorySizeA, uint16_t remainMemorySizeB) :
+            server(server), remainCpuCoreA(remainCpuCoreA), remainCpuCoreB(remainCpuCoreB),
+            remainMemorySizeA(remainMemorySizeA), remainMemorySizeB(remainMemorySizeB) {}
+
     Server *server{};
     uint16_t remainCpuCoreA{};
     uint16_t remainCpuCoreB{};
@@ -55,7 +67,6 @@ std::unordered_map<int, uint32_t> deployedVMIdMap;  // id -> deployedVMs index
 
 Server *servers;
 VirtualMachine *virtualMachines;
-Request *requests = new Request[MAX_REQUEST_NUM];
 Server *minHardwareCostServer;
 
 std::vector<PurchasedServer> purchasedServers;
@@ -65,18 +76,13 @@ std::vector<string> ans;
 
 PurchasedServer *PurchaseServer() {
     Server *server;
-    static PurchasedServer purchasedServer;
 
     // TODO: choose server
     server = minHardwareCostServer;
-    purchasedServer.server = server;
-    purchasedServer.remainCpuCoreA = server->cpuCore >> 1;
-    purchasedServer.remainCpuCoreB = purchasedServer.remainCpuCoreA;
-    purchasedServer.remainMemorySizeA = server->memorySize >> 1;
-    purchasedServer.remainMemorySizeB = purchasedServer.remainMemorySizeA;
-
-    purchasedServers.push_back(purchasedServer);
-    return &purchasedServer;
+    auto *purchasedServer = new PurchasedServer(server, server->cpuCore >> 1u, server->cpuCore >> 1u,
+                                                server->memorySize >> 1u, server->memorySize >> 1u);
+    purchasedServers.push_back(*purchasedServer);
+    return purchasedServer;
 }
 
 void Expand(uint8_t num) {
@@ -90,21 +96,21 @@ void Migrate(uint8_t num) {
 uint8_t AddVirtualMachine(uint16_t day, int id, const string &type) {
     VirtualMachine &vm = virtualMachines[virtualMachineMap[type]];
     PurchasedServer *purchasedServer;
-    DeployedVirtualMachine deployedVM;
+    auto *deployedVM = new DeployedVirtualMachine();
     bool deployed = false;
 
     if (vm.nodeNum) {
         for (int i = 0; i < purchasedServers.size(); ++i) {
-            purchasedServer = &purchasedServers[i];
-            if (purchasedServer->remainCpuCoreA >= vm.cpuCore >> 1
-                && purchasedServer->remainMemorySizeA >= vm.memorySize >> 1
-                && purchasedServer->remainCpuCoreB >= vm.cpuCore >> 1
-                && purchasedServer->remainMemorySizeB >= vm.memorySize >> 1) {
+            purchasedServer = &(purchasedServers[i]);
+            if (purchasedServer->remainCpuCoreA >= vm.cpuCore >> 1u
+                && purchasedServer->remainMemorySizeA >= vm.memorySize >> 1u
+                && purchasedServer->remainCpuCoreB >= vm.cpuCore >> 1u
+                && purchasedServer->remainMemorySizeB >= vm.memorySize >> 1u) {
 
-                purchasedServer->remainCpuCoreA -= vm.cpuCore >> 1;
-                purchasedServer->remainMemorySizeA -= vm.memorySize >> 1;
-                purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1;
-                purchasedServer->remainMemorySizeB -= vm.memorySize >> 1;
+                purchasedServer->remainCpuCoreA -= vm.cpuCore >> 1u;
+                purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1u;
+                purchasedServer->remainMemorySizeA -= vm.memorySize >> 1u;
+                purchasedServer->remainMemorySizeB -= vm.memorySize >> 1u;
                 res.push_back("(" + std::to_string(i) + ")\n");
                 deployed = true;
                 break;
@@ -113,10 +119,10 @@ uint8_t AddVirtualMachine(uint16_t day, int id, const string &type) {
 
         if (!deployed) {
             purchasedServer = PurchaseServer();
-            purchasedServer->remainCpuCoreA -= vm.cpuCore >> 1;
-            purchasedServer->remainMemorySizeA -= vm.memorySize >> 1;
-            purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1;
-            purchasedServer->remainMemorySizeB -= vm.memorySize >> 1;
+            purchasedServer->remainCpuCoreA -= vm.cpuCore >> 1u;
+            purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1u;
+            purchasedServer->remainMemorySizeA -= vm.memorySize >> 1u;
+            purchasedServer->remainMemorySizeB -= vm.memorySize >> 1u;
             res.push_back("(" + std::to_string(purchasedServers.size() - 1) + ")\n");
         }
     } else {
@@ -129,7 +135,7 @@ uint8_t AddVirtualMachine(uint16_t day, int id, const string &type) {
                 purchasedServer->remainMemorySizeA -= vm.memorySize;
                 res.push_back("(" + std::to_string(i) + ", " + "A)\n");
                 deployed = true;
-                deployedVM.location = true;
+                deployedVM->location = true;
                 break;
             }
             if (purchasedServer->remainCpuCoreB >= vm.cpuCore &&
@@ -139,7 +145,7 @@ uint8_t AddVirtualMachine(uint16_t day, int id, const string &type) {
                 purchasedServer->remainMemorySizeB -= vm.memorySize;
                 res.push_back("(" + std::to_string(i) + ", " + "B)\n");
                 deployed = true;
-                deployedVM.location = false;
+                deployedVM->location = false;
                 break;
             }
         }
@@ -149,14 +155,21 @@ uint8_t AddVirtualMachine(uint16_t day, int id, const string &type) {
             purchasedServer->remainCpuCoreA -= vm.cpuCore;
             purchasedServer->remainMemorySizeA -= vm.memorySize;
             res.push_back("(" + std::to_string(purchasedServers.size() - 1) + ", " + "A)\n");
-            deployedVM.location = true;
+            deployedVM->location = true;
         }
     }
 
-    deployedVM.purchasedServer = purchasedServer;
-    deployedVM.vm = &vm;
-    deployedVMs.push_back(deployedVM);
+    deployedVM->purchasedServer = purchasedServer;
+    deployedVM->vm = &vm;
+    deployedVMs.push_back(*deployedVM);
     deployedVMIdMap[id] = deployedVMs.size() - 1;
+
+    std::cout << "--------\n";
+    std::cout << id << std::endl;
+    // std::cout << deployedVM->purchasedServer->remainCpuCoreA << std::endl;
+    // std::cout << deployedVM->purchasedServer->remainCpuCoreB << std::endl;
+    // std::cout << deployedVM->purchasedServer->remainMemorySizeA << std::endl;
+    // std::cout << deployedVM->purchasedServer->remainMemorySizeB << std::endl;
 
     return deployed ? 0 : 1;
 }
@@ -167,10 +180,10 @@ void DeleteVirtualMachine(int id) {
     VirtualMachine &vm = *(deployedVM.vm);
 
     if (vm.nodeNum) {
-        purchasedServer.remainCpuCoreA += vm.cpuCore >> 1;
-        purchasedServer.remainCpuCoreB += vm.cpuCore >> 1;
-        purchasedServer.remainMemorySizeA += vm.memorySize >> 1;
-        purchasedServer.remainMemorySizeB += vm.memorySize >> 1;
+        purchasedServer.remainCpuCoreA += vm.cpuCore >> 1u;
+        purchasedServer.remainCpuCoreB += vm.cpuCore >> 1u;
+        purchasedServer.remainMemorySizeA += vm.memorySize >> 1u;
+        purchasedServer.remainMemorySizeB += vm.memorySize >> 1u;
     } else {
         if (deployedVM.location) {
             purchasedServer.remainCpuCoreA += vm.cpuCore;
@@ -278,31 +291,25 @@ void InputRequest() {
         uint8_t purchasedServerNum = 0;
 
         for (uint32_t j = 0; j < R; ++j) {
+            Request req;
+
             std::cin >> operationStr;
-
-            std::cout << operationStr;
-
-            requests[j].add = (operationStr[1] == 'a');
-            if (requests[j].add) {
+            req.add = (operationStr[1] == 'a');
+            if (req.add) {
                 std::cin >> typeStr;
-
-                std::cout << typeStr;
-
-                requests[j].type = typeStr.substr(0, typeStr.size() - 1);
+                req.type = typeStr.substr(0, typeStr.size() - 1);
             }
+
             std::cin >> idStr;
-
-            std::cout << idStr << std::endl;
-
             id = 0;
             for (int k = 0; k < idStr.size() - 1; ++k) {
                 id = id * 10 + (idStr[k] - 48);
             }
-            requests[j].id = id;
+            req.id = id;
 
             // TODO: boom shit
-            if (requests[j].add) {
-                purchasedServerNum += AddVirtualMachine(i, id, requests[j].type);
+            if (req.add) {
+                purchasedServerNum += AddVirtualMachine(i, id, req.type);
             } else {
                 DeleteVirtualMachine(id);
             }
@@ -311,7 +318,7 @@ void InputRequest() {
         // TODO: purchase
         if (purchasedServerNum > 0) {
             Expand(1);
-            res.push_back("(" + minHardwareCostServer->type + ", " + std::to_string(purchasedServerNum) + ")");
+            ans.push_back("(" + minHardwareCostServer->type + ", " + std::to_string(purchasedServerNum) + ")\n");
         } else {
             Expand(0);
         }
@@ -342,9 +349,14 @@ int main(int argc, char *argv[]) {
 #ifdef TEST
     auto start = std::chrono::system_clock::now();
 
-    // std::freopen("/home/shenke/Develop/GitHub Repository/Huawei-CodeCraft-2021/preliminary-practice/data/test.txt", "r", stdin);
-    // std::freopen("/home/shenke/Develop/GitHub Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-1.txt", "r", stdin);
-    std::freopen("/home/shenke/Develop/GitHub Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-2.txt", "r", stdin);
+    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\test.txt)";
+    string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-1.txt)";
+    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-2.txt)";
+    // string inputFile = "/home/shenke/Develop/GitHub Repository/Huawei-CodeCraft-2021/preliminary-practice/data/test.txt";
+    // string inputFile = "/home/shenke/Develop/GitHub Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-1.txt";
+    // string inputFile = "/home/shenke/Develop/GitHub Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-2.txt";
+
+    std::freopen(inputFile.c_str(), "r", stdin);
 
     // if (argc > 1) {
     //     printf("input filePath: %s", argv[1]);
@@ -373,7 +385,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef TEST
     fclose(stdin);
-    fclose(stdout);
+    // fclose(stdout);
 
     std::chrono::duration<double, std::milli> duration = std::chrono::system_clock::now() - start;
     printf("Total use: %.3fms\n", duration.count());

@@ -4,7 +4,7 @@ SCRIPT=$(readlink -f "$0")
 BASEDIR=$(dirname "$SCRIPT")
 cd $BASEDIR
 
-if [ ! -d CodeCraft-2021 ]
+if [ ! -d ../CodeCraft-2021 ]
 then
     echo "ERROR: $BASEDIR is not a valid directory of SDK_C++ for CodeCraft-2021."
     echo "  Please run this script in a regular directory of SDK_C++."
@@ -19,11 +19,11 @@ then
     exit
 fi
 
-rm -fr bin
-mkdir bin
-rm -fr build
-mkdir build
-cd build
+rm -fr ../bin
+mkdir ../bin
+rm -fr ../build
+mkdir ../build
+cd ../build
 
 cmake ../CodeCraft-2021
 tmp=$?
