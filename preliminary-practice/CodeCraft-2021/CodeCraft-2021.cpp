@@ -7,6 +7,8 @@
 
 #include <bits/stdc++.h>
 
+#include <utility>
+
 using std::string;
 
 #define TEST
@@ -18,10 +20,11 @@ struct Server {
     uint32_t hardwareCost{};
     uint16_t energyCost{};
 
-    Server() {}
+    Server() = default;
 
-    // Server(string type, uint16_t cpuCore, uint16_t memorySize, uint32_t hardwareCost, uint16_t energyCost) :
-    //         type(type), cpuCore(cpuCore), memorySize(memorySize), hardwareCost(hardwareCost), energyCost(energyCost) {}
+    Server(string type, uint16_t cpuCore, uint16_t memorySize, uint32_t hardwareCost, uint16_t energyCost) :
+            type(std::move(type)), cpuCore(cpuCore), memorySize(memorySize), hardwareCost(hardwareCost),
+            energyCost(energyCost) {}
 };
 
 struct VirtualMachine {
@@ -30,10 +33,10 @@ struct VirtualMachine {
     uint16_t memorySize{};
     bool nodeNum{}; // 1: 双节点, 0: 单节点
 
-    VirtualMachine() {}
+    VirtualMachine() = default;
 
-    // VirtualMachine(string type, uint16_t cpuCore, uint16_t memorySize, bool nodeNum) :
-    //         type(type), cpuCore(cpuCore), memorySize(memorySize), nodeNum(nodeNum) {}
+    VirtualMachine(string type, uint16_t cpuCore, uint16_t memorySize, bool nodeNum) :
+            type(std::move(type)), cpuCore(cpuCore), memorySize(memorySize), nodeNum(nodeNum) {}
 };
 
 struct Request {
@@ -41,27 +44,27 @@ struct Request {
     string type{};
     int id{};
 
-    Request() {}
+    Request() = default;
 
-    // Request(bool add, string type, int id) : add(add), type(type), id(id) {}
+    Request(bool add, string type, int id) : add(add), type(std::move(type)), id(id) {}
 };
 
 struct PurchasedServer {
-    Server *server{};
+    uint8_t serverId;
     uint16_t remainCpuCoreA{};
     uint16_t remainCpuCoreB{};
     uint16_t remainMemorySizeA{};
     uint16_t remainMemorySizeB{};
 
-    PurchasedServer(Server *server, uint16_t remainCpuCoreA, uint16_t remainCpuCoreB,
+    PurchasedServer(uint8_t serverId, uint16_t remainCpuCoreA, uint16_t remainCpuCoreB,
                     uint16_t remainMemorySizeA, uint16_t remainMemorySizeB) :
-            server(server), remainCpuCoreA(remainCpuCoreA), remainCpuCoreB(remainCpuCoreB),
+            serverId(serverId), remainCpuCoreA(remainCpuCoreA), remainCpuCoreB(remainCpuCoreB),
             remainMemorySizeA(remainMemorySizeA), remainMemorySizeB(remainMemorySizeB) {}
 };
 
 struct DeployedVirtualMachine {
-    PurchasedServer *purchasedServer{};
-    VirtualMachine *vm{};
+    uint16_t purchasedServerId{};
+    uint16_t vmId{};
     bool location{}; // 1: A, 0: B
 };
 
@@ -81,135 +84,13 @@ std::unordered_map<int, uint32_t> deployedVMIdMap;  // id -> deployedVMs index
 
 std::vector<Server> servers;
 std::vector<VirtualMachine> virtualMachines;
-Server *minHardwareCostServer;
+std::vector<std::vector<Request>> requests;
+uint8_t minHardwareCostServerId = 0u;
 
 std::vector<PurchasedServer> purchasedServers;
 std::vector<DeployedVirtualMachine> deployedVMs;
 std::vector<string> res;
 std::vector<string> ans;
-
-PurchasedServer *PurchaseServer() {
-    Server *server;
-
-    // TODO: choose server
-    server = minHardwareCostServer;
-    auto *purchasedServer = new PurchasedServer(server, server->cpuCore >> 1u, server->cpuCore >> 1u,
-                                                server->memorySize >> 1u, server->memorySize >> 1u);
-    purchasedServers.push_back(*purchasedServer);
-    return purchasedServer;
-}
-
-void Expand(uint8_t num) {
-    ans.emplace_back("(purchase, " + std::to_string(num) + ")\n");
-}
-
-void Migrate(uint8_t num) {
-    ans.emplace_back("(migration, " + std::to_string(num) + ")\n");
-}
-
-uint8_t AddVirtualMachine(uint16_t day, int id, const string &type) {
-    VirtualMachine &vm = virtualMachines[virtualMachineMap[type]];
-    PurchasedServer *purchasedServer;
-    auto *deployedVM = new DeployedVirtualMachine();
-    bool deployed = false;
-
-    if (vm.nodeNum) {
-        for (int i = 0; i < purchasedServers.size(); ++i) {
-            purchasedServer = &(purchasedServers[i]);
-            if (purchasedServer->remainCpuCoreA >= vm.cpuCore >> 1u
-                && purchasedServer->remainMemorySizeA >= vm.memorySize >> 1u
-                && purchasedServer->remainCpuCoreB >= vm.cpuCore >> 1u
-                && purchasedServer->remainMemorySizeB >= vm.memorySize >> 1u) {
-
-                purchasedServer->remainCpuCoreA -= vm.cpuCore >> 1u;
-                purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1u;
-                purchasedServer->remainMemorySizeA -= vm.memorySize >> 1u;
-                purchasedServer->remainMemorySizeB -= vm.memorySize >> 1u;
-                res.push_back("(" + std::to_string(i) + ")\n");
-                deployed = true;
-                break;
-            }
-        }
-
-        if (!deployed) {
-            purchasedServer = PurchaseServer();
-            purchasedServer->remainCpuCoreA -= vm.cpuCore >> 1u;
-            purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1u;
-            purchasedServer->remainMemorySizeA -= vm.memorySize >> 1u;
-            purchasedServer->remainMemorySizeB -= vm.memorySize >> 1u;
-            res.push_back("(" + std::to_string(purchasedServers.size() - 1) + ")\n");
-        }
-    } else {
-        for (int i = 0; i < purchasedServers.size(); ++i) {
-            purchasedServer = &purchasedServers[i];
-            if (purchasedServer->remainCpuCoreA >= vm.cpuCore &&
-                purchasedServer->remainMemorySizeA >= vm.memorySize) {
-
-                purchasedServer->remainCpuCoreA -= vm.cpuCore;
-                purchasedServer->remainMemorySizeA -= vm.memorySize;
-                res.push_back("(" + std::to_string(i) + ", " + "A)\n");
-                deployed = true;
-                deployedVM->location = true;
-                break;
-            }
-            if (purchasedServer->remainCpuCoreB >= vm.cpuCore &&
-                purchasedServer->remainMemorySizeB >= vm.memorySize) {
-
-                purchasedServer->remainCpuCoreB -= vm.cpuCore;
-                purchasedServer->remainMemorySizeB -= vm.memorySize;
-                res.push_back("(" + std::to_string(i) + ", " + "B)\n");
-                deployed = true;
-                deployedVM->location = false;
-                break;
-            }
-        }
-
-        if (!deployed) {
-            purchasedServer = PurchaseServer();
-            purchasedServer->remainCpuCoreA -= vm.cpuCore;
-            purchasedServer->remainMemorySizeA -= vm.memorySize;
-            res.push_back("(" + std::to_string(purchasedServers.size() - 1) + ", " + "A)\n");
-            deployedVM->location = true;
-        }
-    }
-
-    deployedVM->purchasedServer = purchasedServer;
-    deployedVM->vm = &vm;
-    deployedVMs.push_back(*deployedVM);
-    deployedVMIdMap[id] = deployedVMs.size() - 1;
-
-    std::cout << "--------\n";
-    std::cout << id << std::endl;
-    std::cout << deployedVM->purchasedServer->remainCpuCoreA << std::endl;
-    std::cout << deployedVM->purchasedServer->remainCpuCoreB << std::endl;
-    std::cout << deployedVM->purchasedServer->remainMemorySizeA << std::endl;
-    std::cout << deployedVM->purchasedServer->remainMemorySizeB << std::endl;
-
-    return deployed ? 0 : 1;
-}
-
-void DeleteVirtualMachine(int id) {
-    DeployedVirtualMachine &deployedVM = deployedVMs[deployedVMIdMap[id]];
-    PurchasedServer &purchasedServer = *(deployedVM.purchasedServer);
-    VirtualMachine &vm = *(deployedVM.vm);
-
-    if (vm.nodeNum) {
-        purchasedServer.remainCpuCoreA += vm.cpuCore >> 1u;
-        purchasedServer.remainCpuCoreB += vm.cpuCore >> 1u;
-        purchasedServer.remainMemorySizeA += vm.memorySize >> 1u;
-        purchasedServer.remainMemorySizeB += vm.memorySize >> 1u;
-    } else {
-        if (deployedVM.location) {
-            purchasedServer.remainCpuCoreA += vm.cpuCore;
-            purchasedServer.remainMemorySizeA += vm.memorySize;
-        } else {
-            purchasedServer.remainCpuCoreB += vm.cpuCore;
-            purchasedServer.remainMemorySizeB += vm.memorySize;
-        }
-    }
-
-    deployedVMIdMap.erase(id);
-}
 
 void InputServer() {
     scanf("%du", &N);
@@ -253,7 +134,7 @@ void InputServer() {
         serverMap[servers[i].type] = i;
         if (hardwareCost < minHardwareCost) {
             minHardwareCost = hardwareCost;
-            minHardwareCostServer = &servers[i];
+            minHardwareCostServerId = i;
         }
     }
 
@@ -306,14 +187,16 @@ void InputRequest() {
         bool add;
         string type;
         int id;
-        uint8_t purchasedServerNum = 0;
+        std::vector<Request> request;
 
         for (uint32_t j = 0; j < R; ++j) {
+            Request req;
+
             std::cin >> operationStr;
-            add = (operationStr[1] == 'a');
-            if (add) {
+            req.add = (operationStr[1] == 'a');
+            if (req.add) {
                 std::cin >> typeStr;
-                type = typeStr.substr(0, typeStr.size() - 1);
+                req.type = typeStr.substr(0, typeStr.size() - 1);
             }
 
             std::cin >> idStr;
@@ -321,32 +204,12 @@ void InputRequest() {
             for (int k = 0; k < idStr.size() - 1; ++k) {
                 id = id * 10 + (idStr[k] - 48);
             }
+            req.id = id;
 
-            // TODO: boom shit
-            if (add) {
-                purchasedServerNum += AddVirtualMachine(i, id, type);
-            } else {
-                DeleteVirtualMachine(id);
-            }
+            request.push_back(req);
         }
 
-        // TODO: purchase
-        if (purchasedServerNum > 0) {
-            Expand(1);
-            ans.push_back("(" + minHardwareCostServer->type + ", " + std::to_string(purchasedServerNum) + ")\n");
-        } else {
-            Expand(0);
-        }
-
-        // TODO: Migrate
-        Migrate(0);
-
-        for (auto &s : res) {
-            ans.push_back(s);
-        }
-
-        res.clear();
-        purchasedServerNum = 0;
+        requests.push_back(request);
     }
 
 #ifdef TEST
@@ -354,8 +217,182 @@ void InputRequest() {
 #endif
 }
 
+void Expand(uint8_t num) {
+    ans.push_back("(purchase, " + std::to_string(num) + ")\n");
+}
+
+void Migrate(uint8_t num) {
+    ans.push_back("(migration, " + std::to_string(num) + ")\n");
+}
+
+uint16_t PurchaseServer() {
+    // TODO: choose server
+    Server &server = servers[minHardwareCostServerId];
+    auto *purchasedServer = new PurchasedServer(minHardwareCostServerId, server.cpuCore >> 1u, server.cpuCore >> 1u,
+                                                server.memorySize >> 1u, server.memorySize >> 1u);
+    purchasedServers.push_back(*purchasedServer);
+    return purchasedServers.size() - 1;
+}
+
+bool CheckCapacity(uint16_t day) {
+#ifdef TEST
+    printf("Checking capacity\n");
+#endif
+
+    return false;
+}
+
+uint16_t AddVirtualMachine(uint16_t day, int id, const string &type) {
+    uint16_t vmId = virtualMachineMap[type];
+    VirtualMachine &vm = virtualMachines[vmId];
+    uint16_t purchasedServerId;
+    PurchasedServer *purchasedServer;
+    auto *deployedVM = new DeployedVirtualMachine();
+    bool deployed = false;
+
+    if (vm.nodeNum) {
+        for (uint32_t i = 0u; i < purchasedServers.size(); ++i) {
+            purchasedServerId = i;
+            purchasedServer = &(purchasedServers[i]);
+            if (purchasedServer->remainCpuCoreA >= vm.cpuCore >> 1u
+                && purchasedServer->remainMemorySizeA >= vm.memorySize >> 1u
+                && purchasedServer->remainCpuCoreB >= vm.cpuCore >> 1u
+                && purchasedServer->remainMemorySizeB >= vm.memorySize >> 1u) {
+
+                purchasedServer->remainCpuCoreA -= vm.cpuCore >> 1u;
+                purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1u;
+                purchasedServer->remainMemorySizeA -= vm.memorySize >> 1u;
+                purchasedServer->remainMemorySizeB -= vm.memorySize >> 1u;
+                res.push_back("(" + std::to_string(i) + ")\n");
+                deployed = true;
+                break;
+            }
+        }
+
+        if (!deployed) {
+            purchasedServerId = PurchaseServer();
+            purchasedServer = &(purchasedServers[purchasedServerId]);
+            purchasedServer->remainCpuCoreA -= vm.cpuCore >> 1u;
+            purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1u;
+            purchasedServer->remainMemorySizeA -= vm.memorySize >> 1u;
+            purchasedServer->remainMemorySizeB -= vm.memorySize >> 1u;
+            res.push_back("(" + std::to_string(purchasedServers.size() - 1) + ")\n");
+        }
+    } else {
+        for (uint32_t i = 0u; i < purchasedServers.size(); ++i) {
+            purchasedServerId = i;
+            purchasedServer = &(purchasedServers[i]);
+            if (purchasedServer->remainCpuCoreA >= vm.cpuCore &&
+                purchasedServer->remainMemorySizeA >= vm.memorySize) {
+
+                purchasedServer->remainCpuCoreA -= vm.cpuCore;
+                purchasedServer->remainMemorySizeA -= vm.memorySize;
+                res.push_back("(" + std::to_string(i) + ", " + "A)\n");
+                deployed = true;
+                deployedVM->location = true;
+                break;
+            }
+            if (purchasedServer->remainCpuCoreB >= vm.cpuCore &&
+                purchasedServer->remainMemorySizeB >= vm.memorySize) {
+
+                purchasedServer->remainCpuCoreB -= vm.cpuCore;
+                purchasedServer->remainMemorySizeB -= vm.memorySize;
+                res.push_back("(" + std::to_string(i) + ", " + "B)\n");
+                deployed = true;
+                deployedVM->location = false;
+                break;
+            }
+        }
+
+        if (!deployed) {
+            purchasedServerId = PurchaseServer();
+            purchasedServer = &(purchasedServers[purchasedServerId]);
+            purchasedServer->remainCpuCoreA -= vm.cpuCore;
+            purchasedServer->remainMemorySizeA -= vm.memorySize;
+            res.push_back("(" + std::to_string(purchasedServers.size() - 1) + ", " + "A)\n");
+            deployedVM->location = true;
+        }
+    }
+
+    deployedVM->purchasedServerId = purchasedServerId;
+    deployedVM->vmId = vmId;
+    deployedVMs.push_back(*deployedVM);
+    deployedVMIdMap[id] = deployedVMs.size() - 1;
+
+    return deployed ? 0 : 1;
+}
+
+void DeleteVirtualMachine(int id) {
+    DeployedVirtualMachine &deployedVM = deployedVMs[deployedVMIdMap[id]];
+    PurchasedServer &purchasedServer = purchasedServers[deployedVM.purchasedServerId];
+    VirtualMachine &vm = virtualMachines[deployedVM.vmId];
+
+    if (vm.nodeNum) {
+        purchasedServer.remainCpuCoreA += vm.cpuCore >> 1u;
+        purchasedServer.remainCpuCoreB += vm.cpuCore >> 1u;
+        purchasedServer.remainMemorySizeA += vm.memorySize >> 1u;
+        purchasedServer.remainMemorySizeB += vm.memorySize >> 1u;
+    } else {
+        if (deployedVM.location) {
+            purchasedServer.remainCpuCoreA += vm.cpuCore;
+            purchasedServer.remainMemorySizeA += vm.memorySize;
+        } else {
+            purchasedServer.remainCpuCoreB += vm.cpuCore;
+            purchasedServer.remainMemorySizeB += vm.memorySize;
+        }
+    }
+
+    deployedVMIdMap.erase(id);
+}
+
+void Init() {
+
+}
+
+void Solve() {
+#ifdef TEST
+    auto start = std::chrono::system_clock::now();
+#endif
+
+    for (uint16_t i = 0u; i < T; ++i) {
+#ifdef TEST
+        if (i % 100 == 0) printf("Solving %d day\n", i + 1);
+#endif
+
+        std::vector<Request> &request = requests[i];
+        uint16_t purchasedServerNumToday = 0;
+
+        // TODO: 综合分析当天所有请求
+
+        for (auto &req : request) {
+            if (req.add) {
+                purchasedServerNumToday += AddVirtualMachine(i, req.id, req.type);
+            } else {
+                DeleteVirtualMachine(req.id);
+            }
+        }
+
+        if (purchasedServerNumToday > 0) {
+            Expand(1);
+            ans.push_back("(" + servers[minHardwareCostServerId].type + ", " + std::to_string(purchasedServerNumToday) + ")\n");
+        } else {
+            Expand(0);
+        }
+
+        for (auto &s : res) {
+            ans.push_back(s);
+        }
+        res.clear();
+    }
+
+#ifdef TEST
+    std::chrono::duration<double, std::milli> duration = std::chrono::system_clock::now() - start;
+    printf("Solve use: %.3fms\n", duration.count());
+#endif
+}
+
 void Output() {
-    for (const string &s : ans) {
+    for (auto &s : ans) {
         std::cout << s;
     }
 }
@@ -364,10 +401,10 @@ int main(int argc, char *argv[]) {
 #ifdef TEST
     auto start = std::chrono::system_clock::now();
 
-    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\test.txt)";
+    string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\test.txt)";
     // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-1.txt)";
     // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-2.txt)";
-    string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/test.txt";
+    // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/test.txt";
     // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-1.txt";
     // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-2.txt";
 
@@ -390,7 +427,8 @@ int main(int argc, char *argv[]) {
     InputRequest();
 
     // TODO: process
-    // Init();
+    Init();
+    Solve();
 
     // TODO: write standard output
     Output();
