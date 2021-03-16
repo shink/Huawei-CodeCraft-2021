@@ -7,8 +7,6 @@
 
 #include <bits/stdc++.h>
 
-#include <utility>
-
 using std::string;
 
 #define TEST
@@ -63,7 +61,7 @@ struct PurchasedServer {
 };
 
 struct DeployedVirtualMachine {
-    uint16_t purchasedServerId{};
+    uint32_t purchasedServerId{};
     uint16_t vmId{};
     bool location{}; // 1: A, 0: B
 };
@@ -85,19 +83,23 @@ std::unordered_map<int, uint32_t> deployedVMIdMap;  // id -> deployedVMs index
 std::vector<Server> servers;
 std::vector<VirtualMachine> virtualMachines;
 std::vector<std::vector<Request>> requests;
-uint8_t minHardwareCostServerId = 0u;
+uint8_t maxHardwareCostServerId = 0u;
 
 std::vector<PurchasedServer> purchasedServers;
 std::vector<DeployedVirtualMachine> deployedVMs;
 std::vector<string> res;
 std::vector<string> ans;
 
+#ifdef TEST
+uint64_t cost = 0u;
+#endif
+
 void InputServer() {
     scanf("%du", &N);
     string typeStr, cpuCoreStr, memorySizeStr, hardwareCostStr, energyCostStr;
     uint16_t cpuCore;
     uint16_t memorySize;
-    uint32_t hardwareCost, minHardwareCost = 500000;
+    uint32_t hardwareCost, maxHardwareCost = 0u;
     uint16_t energyCost;
 
     for (uint8_t i = 0u; i < N; ++i) {
@@ -132,9 +134,9 @@ void InputServer() {
 
         servers.push_back(*server);
         serverMap[servers[i].type] = i;
-        if (hardwareCost < minHardwareCost) {
-            minHardwareCost = hardwareCost;
-            minHardwareCostServerId = i;
+        if (hardwareCost > maxHardwareCost) {
+            maxHardwareCost = hardwareCost;
+            maxHardwareCostServerId = i;
         }
     }
 
@@ -227,8 +229,13 @@ void Migrate(uint8_t num) {
 
 uint16_t PurchaseServer() {
     // TODO: choose server
-    Server &server = servers[minHardwareCostServerId];
-    auto *purchasedServer = new PurchasedServer(minHardwareCostServerId, server.cpuCore >> 1u, server.cpuCore >> 1u,
+    Server &server = servers[maxHardwareCostServerId];
+
+#ifdef TEST
+    cost += server.hardwareCost;
+#endif
+
+    auto *purchasedServer = new PurchasedServer(maxHardwareCostServerId, server.cpuCore >> 1u, server.cpuCore >> 1u,
                                                 server.memorySize >> 1u, server.memorySize >> 1u);
     purchasedServers.push_back(*purchasedServer);
     return purchasedServers.size() - 1;
@@ -245,7 +252,7 @@ bool CheckCapacity(uint16_t day) {
 uint16_t AddVirtualMachine(uint16_t day, int id, const string &type) {
     uint16_t vmId = virtualMachineMap[type];
     VirtualMachine &vm = virtualMachines[vmId];
-    uint16_t purchasedServerId;
+    uint32_t purchasedServerId;
     PurchasedServer *purchasedServer;
     auto *deployedVM = new DeployedVirtualMachine();
     bool deployed = false;
@@ -255,8 +262,8 @@ uint16_t AddVirtualMachine(uint16_t day, int id, const string &type) {
             purchasedServerId = i;
             purchasedServer = &(purchasedServers[i]);
             if (purchasedServer->remainCpuCoreA >= vm.cpuCore >> 1u
-                && purchasedServer->remainMemorySizeA >= vm.memorySize >> 1u
                 && purchasedServer->remainCpuCoreB >= vm.cpuCore >> 1u
+                && purchasedServer->remainMemorySizeA >= vm.memorySize >> 1u
                 && purchasedServer->remainMemorySizeB >= vm.memorySize >> 1u) {
 
                 purchasedServer->remainCpuCoreA -= vm.cpuCore >> 1u;
@@ -372,22 +379,41 @@ void Solve() {
             }
         }
 
+        // TODO: 扩容
         if (purchasedServerNumToday > 0) {
             Expand(1);
-            ans.push_back("(" + servers[minHardwareCostServerId].type + ", " + std::to_string(purchasedServerNumToday) + ")\n");
+            ans.push_back("(" + servers[maxHardwareCostServerId].type + ", " + std::to_string(purchasedServerNumToday) + ")\n");
         } else {
             Expand(0);
         }
+
+        // TODO: 迁移
+        Migrate(0);
 
         for (auto &s : res) {
             ans.push_back(s);
         }
         res.clear();
+
+#ifdef TEST
+        for (auto &purchasedServer : purchasedServers) {
+            Server &server = servers[purchasedServer.serverId];
+            if (purchasedServer.remainCpuCoreA != purchasedServer.remainCpuCoreB
+                || purchasedServer.remainCpuCoreA != server.cpuCore >> 1u
+                || purchasedServer.remainMemorySizeA != purchasedServer.remainMemorySizeB
+                || purchasedServer.remainMemorySizeA != server.memorySize >> 1u) {
+
+                cost += server.energyCost;
+            }
+        }
+#endif
     }
 
 #ifdef TEST
     std::chrono::duration<double, std::milli> duration = std::chrono::system_clock::now() - start;
     printf("Solve use: %.3fms\n", duration.count());
+    printf("Cost: %d\n", cost);
+    printf("-----------------\n");
 #endif
 }
 
@@ -401,14 +427,16 @@ int main(int argc, char *argv[]) {
 #ifdef TEST
     auto start = std::chrono::system_clock::now();
 
-    string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\test.txt)";
-    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-1.txt)";
+    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\test.txt)";
+    string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-1.txt)";
     // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-2.txt)";
     // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/test.txt";
     // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-1.txt";
     // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-2.txt";
 
+    string outputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\output.txt)";
     std::freopen(inputFile.c_str(), "r", stdin);
+    std::freopen(outputFile.c_str(), "w", stdout);
 
     // if (argc > 1) {
     //     printf("input filePath: %s", argv[1]);
@@ -438,7 +466,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef TEST
     fclose(stdin);
-    // fclose(stdout);
+    fclose(stdout);
 
     std::chrono::duration<double, std::milli> duration = std::chrono::system_clock::now() - start;
     printf("Total use: %.3fms\n", duration.count());
