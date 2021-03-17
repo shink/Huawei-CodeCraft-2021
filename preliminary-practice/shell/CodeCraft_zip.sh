@@ -3,6 +3,7 @@
 SCRIPT=$(readlink -f "$0")
 BASEDIR=$(dirname "$SCRIPT")
 cd $BASEDIR
+cd ..
 
 if [ ! -d CodeCraft-2021 ]
 then
@@ -11,5 +12,13 @@ then
     exit -1
 fi
 
-rm -f CodeCraft-2021.zip
-zip -r CodeCraft-2021.zip *
+cd answer
+mkdir tempDir
+cp -r ../CodeCraft-2021 tempDir/
+cp ../SDK_C++/*.sh tempDir/
+
+cd tempDir
+rm -rf ../CodeCraft-2021.zip
+zip -r ../CodeCraft-2021.zip *
+cd ..
+rm -rf tempDir
