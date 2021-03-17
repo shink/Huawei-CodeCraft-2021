@@ -18,6 +18,8 @@ cp -r ../CodeCraft-2021 tempDir/
 cp ../SDK_C++/*.sh tempDir/
 
 cd tempDir
+set -i "s/^#define TEST/\/\/ #define TEST/" CodeCraft-2021/CodeCraft-2021.cpp
+
 rm -rf ../CodeCraft-2021.zip
 zip -r ../CodeCraft-2021.zip *
 cd ..
