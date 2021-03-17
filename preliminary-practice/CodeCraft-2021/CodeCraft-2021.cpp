@@ -9,7 +9,7 @@
 
 using std::string;
 
-#define TEST
+// #define TEST
 
 struct Server {
     string type{};
@@ -45,6 +45,10 @@ struct Request {
     Request() = default;
 
     Request(bool add, string type, int id) : add(add), type(std::move(type)), id(id) {}
+
+    std::string toString() const {
+        return "add: " + std::to_string(add) + ", type: " + type + ", id: " + std::to_string(id);
+    }
 };
 
 struct PurchasedServer {
@@ -54,8 +58,7 @@ struct PurchasedServer {
     uint16_t remainMemorySizeA{};
     uint16_t remainMemorySizeB{};
 
-    PurchasedServer(uint8_t serverId, uint16_t remainCpuCoreA, uint16_t remainCpuCoreB,
-                    uint16_t remainMemorySizeA, uint16_t remainMemorySizeB) :
+    PurchasedServer(uint8_t serverId, uint16_t remainCpuCoreA, uint16_t remainCpuCoreB, uint16_t remainMemorySizeA, uint16_t remainMemorySizeB) :
             serverId(serverId), remainCpuCoreA(remainCpuCoreA), remainCpuCoreB(remainCpuCoreB),
             remainMemorySizeA(remainMemorySizeA), remainMemorySizeB(remainMemorySizeB) {}
 };
@@ -101,6 +104,7 @@ void InputServer() {
     uint16_t memorySize;
     uint32_t hardwareCost, maxHardwareCost = 0u;
     uint16_t energyCost;
+    servers.resize(N);
 
     for (uint8_t i = 0u; i < N; ++i) {
         std::cin >> typeStr >> cpuCoreStr >> memorySizeStr >> hardwareCostStr >> energyCostStr;
@@ -132,7 +136,7 @@ void InputServer() {
         }
         server->energyCost = energyCost;
 
-        servers.push_back(*server);
+        servers[i] = *server;
         serverMap[servers[i].type] = i;
         if (hardwareCost > maxHardwareCost) {
             maxHardwareCost = hardwareCost;
@@ -150,6 +154,7 @@ void InputVirtualMachine() {
     string typeStr, cpuCoreStr, memorySizeStr, nodeNumStr;
     uint16_t cpuCore;
     uint16_t memorySize;
+    virtualMachines.resize(M);
 
     for (uint16_t i = 0u; i < M; ++i) {
         std::cin >> typeStr >> cpuCoreStr >> memorySizeStr >> nodeNumStr;
@@ -170,7 +175,7 @@ void InputVirtualMachine() {
         vm->memorySize = memorySize;
 
         vm->nodeNum = (nodeNumStr[0] == '1');
-        virtualMachines.push_back(*vm);
+        virtualMachines[i] = *vm;
         virtualMachineMap[virtualMachines[i].type] = i;
     }
 
@@ -181,17 +186,15 @@ void InputVirtualMachine() {
 
 void InputRequest() {
     scanf("%du", &T);
+    requests.resize(T);
 
-    for (uint16_t i = 0; i < T; ++i) {
-        uint16_t R;
+    for (uint16_t i = 0u; i < T; ++i) {
+        uint32_t R;
         scanf("%du", &R);
         string operationStr, typeStr, idStr;
-        bool add;
-        string type;
-        int id;
-        std::vector<Request> request;
+        std::vector<Request> request(R);
 
-        for (uint32_t j = 0; j < R; ++j) {
+        for (uint32_t j = 0u; j < R; ++j) {
             Request req;
 
             std::cin >> operationStr;
@@ -202,16 +205,16 @@ void InputRequest() {
             }
 
             std::cin >> idStr;
-            id = 0;
+            int id = 0;
             for (int k = 0; k < idStr.size() - 1; ++k) {
                 id = id * 10 + (idStr[k] - 48);
             }
             req.id = id;
 
-            request.push_back(req);
+            request[j] = req;
         }
 
-        requests.push_back(request);
+        requests[i] = request;
     }
 
 #ifdef TEST
@@ -220,11 +223,11 @@ void InputRequest() {
 }
 
 void Expand(uint8_t num) {
-    ans.push_back("(purchase, " + std::to_string(num) + ")\n");
+    ans.emplace_back("(purchase, " + std::to_string(num) + ")\n");
 }
 
 void Migrate(uint8_t num) {
-    ans.push_back("(migration, " + std::to_string(num) + ")\n");
+    ans.emplace_back("(migration, " + std::to_string(num) + ")\n");
 }
 
 uint16_t PurchaseServer() {
@@ -237,7 +240,7 @@ uint16_t PurchaseServer() {
 
     auto *purchasedServer = new PurchasedServer(maxHardwareCostServerId, server.cpuCore >> 1u, server.cpuCore >> 1u,
                                                 server.memorySize >> 1u, server.memorySize >> 1u);
-    purchasedServers.push_back(*purchasedServer);
+    purchasedServers.emplace_back(*purchasedServer);
     return purchasedServers.size() - 1;
 }
 
@@ -270,7 +273,7 @@ uint16_t AddVirtualMachine(uint16_t day, int id, const string &type) {
                 purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1u;
                 purchasedServer->remainMemorySizeA -= vm.memorySize >> 1u;
                 purchasedServer->remainMemorySizeB -= vm.memorySize >> 1u;
-                res.push_back("(" + std::to_string(i) + ")\n");
+                res.emplace_back("(" + std::to_string(i) + ")\n");
                 deployed = true;
                 break;
             }
@@ -283,7 +286,7 @@ uint16_t AddVirtualMachine(uint16_t day, int id, const string &type) {
             purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1u;
             purchasedServer->remainMemorySizeA -= vm.memorySize >> 1u;
             purchasedServer->remainMemorySizeB -= vm.memorySize >> 1u;
-            res.push_back("(" + std::to_string(purchasedServers.size() - 1) + ")\n");
+            res.emplace_back("(" + std::to_string(purchasedServers.size() - 1) + ")\n");
         }
     } else {
         for (uint32_t i = 0u; i < purchasedServers.size(); ++i) {
@@ -294,7 +297,7 @@ uint16_t AddVirtualMachine(uint16_t day, int id, const string &type) {
 
                 purchasedServer->remainCpuCoreA -= vm.cpuCore;
                 purchasedServer->remainMemorySizeA -= vm.memorySize;
-                res.push_back("(" + std::to_string(i) + ", " + "A)\n");
+                res.emplace_back("(" + std::to_string(i) + ", " + "A)\n");
                 deployed = true;
                 deployedVM->location = true;
                 break;
@@ -304,7 +307,7 @@ uint16_t AddVirtualMachine(uint16_t day, int id, const string &type) {
 
                 purchasedServer->remainCpuCoreB -= vm.cpuCore;
                 purchasedServer->remainMemorySizeB -= vm.memorySize;
-                res.push_back("(" + std::to_string(i) + ", " + "B)\n");
+                res.emplace_back("(" + std::to_string(i) + ", " + "B)\n");
                 deployed = true;
                 deployedVM->location = false;
                 break;
@@ -316,14 +319,14 @@ uint16_t AddVirtualMachine(uint16_t day, int id, const string &type) {
             purchasedServer = &(purchasedServers[purchasedServerId]);
             purchasedServer->remainCpuCoreA -= vm.cpuCore;
             purchasedServer->remainMemorySizeA -= vm.memorySize;
-            res.push_back("(" + std::to_string(purchasedServers.size() - 1) + ", " + "A)\n");
+            res.emplace_back("(" + std::to_string(purchasedServers.size() - 1) + ", " + "A)\n");
             deployedVM->location = true;
         }
     }
 
     deployedVM->purchasedServerId = purchasedServerId;
     deployedVM->vmId = vmId;
-    deployedVMs.push_back(*deployedVM);
+    deployedVMs.emplace_back(*deployedVM);
     deployedVMIdMap[id] = deployedVMs.size() - 1;
 
     return deployed ? 0 : 1;
@@ -382,7 +385,7 @@ void Solve() {
         // TODO: 扩容
         if (purchasedServerNumToday > 0) {
             Expand(1);
-            ans.push_back("(" + servers[maxHardwareCostServerId].type + ", " + std::to_string(purchasedServerNumToday) + ")\n");
+            ans.emplace_back("(" + servers[maxHardwareCostServerId].type + ", " + std::to_string(purchasedServerNumToday) + ")\n");
         } else {
             Expand(0);
         }
@@ -391,7 +394,7 @@ void Solve() {
         Migrate(0);
 
         for (auto &s : res) {
-            ans.push_back(s);
+            ans.emplace_back(s);
         }
         res.clear();
 
@@ -412,8 +415,8 @@ void Solve() {
 #ifdef TEST
     std::chrono::duration<double, std::milli> duration = std::chrono::system_clock::now() - start;
     printf("Solve use: %.3fms\n", duration.count());
-    printf("Cost: %d\n", cost);
-    printf("-----------------\n");
+    printf("Cost: %ld\n", cost);
+    printf("---------------\n");
 #endif
 }
 
@@ -428,13 +431,15 @@ int main(int argc, char *argv[]) {
     auto start = std::chrono::system_clock::now();
 
     // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\test.txt)";
-    string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-1.txt)";
+    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-1.txt)";
     // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-2.txt)";
     // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/test.txt";
     // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-1.txt";
-    // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-2.txt";
+    string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-2.txt";
 
-    string outputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\output.txt)";
+    // string outputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\output.txt)";
+    string outputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/output.txt";
+
     std::freopen(inputFile.c_str(), "r", stdin);
     std::freopen(outputFile.c_str(), "w", stdout);
 
@@ -465,11 +470,11 @@ int main(int argc, char *argv[]) {
 
 
 #ifdef TEST
-    fclose(stdin);
-    fclose(stdout);
-
     std::chrono::duration<double, std::milli> duration = std::chrono::system_clock::now() - start;
     printf("Total use: %.3fms\n", duration.count());
+
+    fclose(stdin);
+    fclose(stdout);
 #endif
 
     exit(0);
