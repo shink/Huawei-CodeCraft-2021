@@ -7,8 +7,6 @@
 
 #include "Solver.h"
 
-#define TEST
-
 
 int main(int argc, char *argv[]) {
 #ifdef TEST
