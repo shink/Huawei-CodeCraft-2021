@@ -47,6 +47,7 @@ void Solver::Solve() {
 
         // TODO: 综合分析当天所有请求
 
+        // TODO: 处理请求
         for (auto &req : request) {
             if (req.add) {
                 purchasedServerNumToday += AddVirtualMachine(i, req.id, req.type);
@@ -55,15 +56,13 @@ void Solver::Solve() {
             }
         }
 
-        // TODO: 扩容
         if (purchasedServerNumToday > 0) {
             Expand(1);
-            ans.emplace_back("(" + servers[maxHardwareCostServerId].type + ", " + std::to_string(purchasedServerNumToday) + ")\n");
+            ans.emplace_back("(" + servers[0].type + ", " + std::to_string(purchasedServerNumToday) + ")\n");
         } else {
             Expand(0);
         }
 
-        // TODO: 迁移
         Migrate(0);
 
         for (auto &s : res) {
@@ -140,11 +139,9 @@ void Solver::InputServer() {
 
         servers[i] = *server;
         serverMap[servers[i].type] = i;
-        if (hardwareCost > maxHardwareCost) {
-            maxHardwareCost = hardwareCost;
-            maxHardwareCostServerId = i;
-        }
     }
+
+    SortServer(0u, servers.size() - 1);
 
 #ifdef TEST
     printf("Server type num: %d\n", N);
@@ -224,17 +221,34 @@ void Solver::InputRequest() {
 #endif
 }
 
+void Solver::SortServer(uint8_t left, uint8_t right) {
+    uint8_t n = right - left;
+    for (uint8_t i = left; i < right; ++i) {
+        for (uint8_t j = 0u; j < n - i; ++j) {
+            if (!CompareServer(servers[j], servers[j + 1])) {
+                serverMap[servers[j].type] = j + 1;
+                serverMap[servers[j + 1].type] = j;
+                std::swap(servers[j], servers[j + 1]);
+            }
+        }
+    }
+}
+
+inline bool Solver::CompareServer(const Server &server1, const Server &server2) {
+    return server1.cpuCore > server2.cpuCore || server1.memorySize > server2.memorySize;
+}
+
 uint16_t Solver::AddVirtualMachine(uint16_t day, int id, const string &type) {
-    uint16_t vmId = virtualMachineMap[type];
-    VirtualMachine &vm = virtualMachines[vmId];
-    uint32_t purchasedServerId;
+    uint16_t vmIdx = virtualMachineMap[type];
+    VirtualMachine &vm = virtualMachines[vmIdx];
+    uint32_t purchasedServerIdx;
     PurchasedServer *purchasedServer;
     auto *deployedVM = new DeployedVirtualMachine();
     bool deployed = false;
 
     if (vm.nodeNum) {
         for (uint32_t i = 0u; i < purchasedServers.size(); ++i) {
-            purchasedServerId = i;
+            purchasedServerIdx = i;
             purchasedServer = &(purchasedServers[i]);
             if (purchasedServer->remainCpuCoreA >= vm.cpuCore >> 1u
                 && purchasedServer->remainCpuCoreB >= vm.cpuCore >> 1u
@@ -252,8 +266,8 @@ uint16_t Solver::AddVirtualMachine(uint16_t day, int id, const string &type) {
         }
 
         if (!deployed) {
-            purchasedServerId = PurchaseServer();
-            purchasedServer = &(purchasedServers[purchasedServerId]);
+            purchasedServerIdx = PurchaseServer();
+            purchasedServer = &(purchasedServers[purchasedServerIdx]);
             purchasedServer->remainCpuCoreA -= vm.cpuCore >> 1u;
             purchasedServer->remainCpuCoreB -= vm.cpuCore >> 1u;
             purchasedServer->remainMemorySizeA -= vm.memorySize >> 1u;
@@ -262,7 +276,7 @@ uint16_t Solver::AddVirtualMachine(uint16_t day, int id, const string &type) {
         }
     } else {
         for (uint32_t i = 0u; i < purchasedServers.size(); ++i) {
-            purchasedServerId = i;
+            purchasedServerIdx = i;
             purchasedServer = &(purchasedServers[i]);
             if (purchasedServer->remainCpuCoreA >= vm.cpuCore &&
                 purchasedServer->remainMemorySizeA >= vm.memorySize) {
@@ -287,8 +301,8 @@ uint16_t Solver::AddVirtualMachine(uint16_t day, int id, const string &type) {
         }
 
         if (!deployed) {
-            purchasedServerId = PurchaseServer();
-            purchasedServer = &(purchasedServers[purchasedServerId]);
+            purchasedServerIdx = PurchaseServer();
+            purchasedServer = &(purchasedServers[purchasedServerIdx]);
             purchasedServer->remainCpuCoreA -= vm.cpuCore;
             purchasedServer->remainMemorySizeA -= vm.memorySize;
             res.emplace_back("(" + std::to_string(purchasedServers.size() - 1) + ", " + "A)\n");
@@ -296,8 +310,8 @@ uint16_t Solver::AddVirtualMachine(uint16_t day, int id, const string &type) {
         }
     }
 
-    deployedVM->purchasedServerId = purchasedServerId;
-    deployedVM->vmId = vmId;
+    deployedVM->purchasedServerId = purchasedServerIdx;
+    deployedVM->vmId = vmIdx;
     deployedVMs.emplace_back(*deployedVM);
     deployedVMIdMap[id] = deployedVMs.size() - 1;
 
@@ -337,13 +351,13 @@ bool Solver::CheckCapacity(uint16_t day) {
 
 uint16_t Solver::PurchaseServer() {
     // TODO: choose server
-    Server &server = servers[maxHardwareCostServerId];
+    Server &server = servers[0];
 
 #ifdef TEST
     cost += server.hardwareCost;
 #endif
 
-    auto *purchasedServer = new PurchasedServer(maxHardwareCostServerId, server.cpuCore >> 1u, server.cpuCore >> 1u,
+    auto *purchasedServer = new PurchasedServer(0, server.cpuCore >> 1u, server.cpuCore >> 1u,
                                                 server.memorySize >> 1u, server.memorySize >> 1u);
     purchasedServers.emplace_back(*purchasedServer);
     return purchasedServers.size() - 1;

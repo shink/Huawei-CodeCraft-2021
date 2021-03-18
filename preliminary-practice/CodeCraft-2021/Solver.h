@@ -23,6 +23,11 @@ struct Server {
     Server(string type, uint16_t cpuCore, uint16_t memorySize, uint32_t hardwareCost, uint16_t energyCost) :
             type(std::move(type)), cpuCore(cpuCore), memorySize(memorySize), hardwareCost(hardwareCost),
             energyCost(energyCost) {}
+
+    string ToString() {
+        return "type: " + type + ", cpuCore: " + std::to_string(cpuCore) + ", memorySize: " + std::to_string(memorySize)
+               + ", hardwareCost: " + std::to_string(hardwareCost) + ", energyCost: " + std::to_string(energyCost);
+    }
 };
 
 struct VirtualMachine {
@@ -46,7 +51,7 @@ struct Request {
 
     Request(bool add, string type, int id) : add(add), type(std::move(type)), id(id) {}
 
-    std::string toString() const {
+    string ToString() const {
         return "add: " + std::to_string(add) + ", type: " + type + ", id: " + std::to_string(id);
     }
 };
@@ -91,6 +96,10 @@ private:
 
     void InputRequest();
 
+    void SortServer(uint8_t left, uint8_t right);
+
+    inline bool CompareServer(const Server &server1, const Server &server2);
+
     uint16_t AddVirtualMachine(uint16_t day, int id, const string &type);
 
     void DeleteVirtualMachine(int id);
@@ -120,7 +129,6 @@ private:
     std::vector<Server> servers;
     std::vector<VirtualMachine> virtualMachines;
     std::vector<std::vector<Request>> requests;
-    uint8_t maxHardwareCostServerId = 0u;
 
     std::vector<PurchasedServer> purchasedServers;
     std::vector<DeployedVirtualMachine> deployedVMs;
