@@ -5,32 +5,13 @@
  * @desp:
  */
 
-#include "Solver.h"
+#include "Handler.h"
 
 
 int main(int argc, char *argv[]) {
-#ifdef TEST
-    auto start = std::chrono::system_clock::now();
-#endif
-
-    Solver solver;
-    // TODO: read standard input
-    solver.Input();
-
-    // TODO: process
-    solver.Init();
-    solver.Solve();
-
-    // TODO: write standard output
-    solver.Output();
-
-#ifdef TEST
-    std::chrono::duration<double, std::milli> duration = std::chrono::system_clock::now() - start;
-    printf("Total use: %.3fms\n", duration.count());
-#endif
-
-    // TODO: fflush(stdout);
-    solver.~Solver();
-
+    Handler handler;
+    handler.Input();
+    handler.Solve();
+    handler.Output();
     exit(0);
 }
