@@ -68,64 +68,101 @@ struct VirtualMachine {
 
 struct Request {
     bool add{}; // 1: add, 0: del
-    string model{};
-    int id{};
+    uint32_t addIdx{};
+    uint16_t vmIdx{};
+    int vmId{};
 
     Request() = default;
 
-    Request(bool add, string model, int id) : add(add), model(std::move(model)), id(id) {}
+    Request(bool add, uint32_t addIdx, uint16_t vmIdx, int vmId) : add(add), addIdx(addIdx), vmIdx(vmIdx), vmId(vmId) {}
 
     string ToString() const {
-        return "add: " + std::to_string(add) + ", model: " + model + ", id: " + std::to_string(id);
+        return "add: " + std::to_string(add) + ", addIdx: " + std::to_string(add) + ", vmIdx: " + std::to_string(vmIdx) + ", vmId: " +
+               std::to_string(vmId);
     }
 };
 
 struct PurchasedServer {
-    bool type{};
+    uint16_t id{};
     uint8_t serverIdx{};
     uint16_t remainCpuCoreA{};
     uint16_t remainCpuCoreB{};
     uint16_t remainMemorySizeA{};
     uint16_t remainMemorySizeB{};
-    double_t remainScaleA{};
-    double_t remainScaleB{};
-    std::vector<uint32_t> deployedVMA{};
-    std::vector<uint32_t> deployedVMB{};
+    std::unordered_set<uint32_t> deployedVM{};
 
     PurchasedServer() = default;
 
-    PurchasedServer(bool type, uint8_t serverIdx, uint16_t cpuCore, uint16_t memorySize, double_t remainScaleA, double_t remainScaleB) :
-            type(type), serverIdx(serverIdx), remainCpuCoreA(cpuCore >> 1u), remainCpuCoreB(cpuCore >> 1u),
-            remainMemorySizeA(memorySize >> 1u), remainMemorySizeB(memorySize >> 1u),
-            remainScaleA(remainScaleA), remainScaleB(remainScaleB) {}
+    PurchasedServer(uint16_t id, uint8_t serverIdx, uint16_t cpuCore, uint16_t memorySize) :
+            id(id), serverIdx(serverIdx), remainCpuCoreA(cpuCore >> 1u), remainCpuCoreB(cpuCore >> 1u),
+            remainMemorySizeA(memorySize >> 1u), remainMemorySizeB(memorySize >> 1u) {}
 
     string ToString() const {
-        return "type: " + std::to_string(type) + ", serverIdx: " + std::to_string(serverIdx)
+        return "id: " + std::to_string(id) + ", candidateServerIdx: " + std::to_string(serverIdx)
                + ", remainCpuCoreA: " + std::to_string(remainCpuCoreA) + ", remainCpuCoreB: " + std::to_string(remainCpuCoreB)
-               + ", remainMemorySizeA: " + std::to_string(remainMemorySizeA) + ", remainMemorySizeB: " + std::to_string(remainMemorySizeB)
-               + ", remainScaleA: " + std::to_string(remainScaleA) + ", remainScaleB: " + std::to_string(remainScaleB);
+               + ", remainMemorySizeA: " + std::to_string(remainMemorySizeA) + ", remainMemorySizeB: " + std::to_string(remainMemorySizeB);
     }
 };
 
 struct DeployedVirtualMachine {
-    uint32_t purchasedServerIdx{};
+    uint16_t purchasedServerId{};
     uint16_t vmIdx{};
     int vmId{};
-    bool location{}; // 1: A, 0: B
+    bool location{};    // 1: A, 0: B
 
     DeployedVirtualMachine() = default;
 
-    DeployedVirtualMachine(uint32_t purchasedServerIdx, uint16_t vmIdx, int vmId, bool location) :
-            purchasedServerIdx(purchasedServerIdx), vmIdx(vmIdx), vmId(vmId), location(location) {}
+    DeployedVirtualMachine(uint16_t purchasedServerId, uint16_t vmIdx, int vmId, bool location) :
+            purchasedServerId(purchasedServerId), vmIdx(vmIdx), vmId(vmId), location(location) {}
 };
 
-struct Quantity {
-    int cpuCore{};
-    int memorySize{};
+struct Demand {
+    uint16_t maxCpuCore;
+    uint16_t maxMemorySize;
+    uint32_t maxTotalCpuCore;
+    uint32_t maxTotalMemorySize;
 
-    Quantity() = default;
+    Demand() = default;
 
-    Quantity(uint32_t cpuCore, uint32_t memorySize) : cpuCore(cpuCore), memorySize(memorySize) {}
+    Demand(uint16_t maxCpuCore, uint16_t maxMemorySize, uint32_t maxTotalCpuCore, uint32_t maxTotalMemorySize) :
+            maxCpuCore(maxCpuCore), maxMemorySize(maxMemorySize), maxTotalCpuCore(maxTotalCpuCore), maxTotalMemorySize(maxTotalMemorySize) {}
+
+    string ToString() const {
+        return "maxCpuCore: " + std::to_string(maxCpuCore) + ", maxMemorySize： " + std::to_string(maxMemorySize) +
+               ", maxTotalCpuCore: " + std::to_string(maxTotalCpuCore) + ", maxTotalMemorySize: " + std::to_string(maxTotalMemorySize);
+    }
+};
+
+struct ExtendResult {
+    uint8_t serverIdx{};
+    uint16_t purchaseNum{};
+
+    ExtendResult(uint8_t serverIdx, uint16_t purchasedNum) : serverIdx(serverIdx), purchaseNum(purchasedNum) {}
+};
+
+struct MigrateResult {
+    int vmId{};
+    uint16_t purchasedServerId{};
+    LOCATION location{NONE};
+
+    MigrateResult(int vmId, uint16_t purchasedServerId, LOCATION location) : vmId(vmId), purchasedServerId(purchasedServerId), location(location) {}
+};
+
+struct RequestResult {
+    uint16_t purchasedServerId{};
+    LOCATION location{NONE};
+
+    RequestResult() = default;
+
+    RequestResult(uint16_t purchasedServerId) : purchasedServerId(purchasedServerId) {}
+
+    RequestResult(uint16_t purchasedServerId, LOCATION location) : purchasedServerId(purchasedServerId), location(location) {}
+};
+
+struct Result {
+    std::vector<ExtendResult> extendResult;
+    std::vector<MigrateResult> migrateResult;
+    std::vector<RequestResult> requestResult;
 };
 
 

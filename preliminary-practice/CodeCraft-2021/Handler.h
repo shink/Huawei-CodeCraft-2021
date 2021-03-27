@@ -17,7 +17,7 @@ public:
 
     void Input();
 
-    void Solve();
+    void Handle();
 
     void Output();
 
@@ -30,31 +30,27 @@ private:
 
     void Init();
 
-    void Expand(uint16_t day);
+    void Expand(const bool &retry, const uint16_t &retryCount);
 
-    void Migrate(uint16_t day);
+    void Migrate();
 
-    void HandleRequests(uint16_t day);
+    void HandleRequests();
 
-    void GatherAnswer();
+    void Purchase(const uint8_t &serverIdx);
 
-    void SortServer(uint8_t left, uint8_t right, bool (*compare)(const Server &, const Server &));
+    LOCATION Migrate(PurchasedServer &originPurchasedServer, PurchasedServer &destPurchasedServer, const uint32_t &deployedVMIdx);
 
-    void Purchase(uint16_t startDay, uint16_t endDay);
+    void ReMapPurchasedServerIdx();
 
-    void Migrate(const VirtualMachine &vm, DeployedVirtualMachine &deployedVM, uint16_t destPurchasedServerIdx, bool destLocation);
+    void SortDeployedVM(std::vector<uint32_t> &deployedVM);
 
-    void SortDeployedVM();
+    uint16_t AddVirtualMachine(const Request &req);
 
-    uint16_t AddVirtualMachine(uint16_t day, int id, const string &model);
-
-    void DeployVirtualMachine(uint16_t purchasedServerIdx, uint16_t vmIdx, int vmId, const LOCATION &location);
+    bool DeployVirtualMachine(const uint16_t &purchasedServerIdx, const Request &req);
 
     void DeleteVirtualMachine(int id);
 
-    inline LOCATION CheckCapacity(const PurchasedServer &purchasedServer, const VirtualMachine &vm);
-
-    inline LOCATION CheckCapacity(const PurchasedServer &purchasedServer);
+    LOCATION CheckCapacity(const PurchasedServer &purchasedServer, const VirtualMachine &vm);
 
     inline double_t CalculateScale(double_t memorySize, double_t cpuCore);
 
@@ -66,31 +62,32 @@ private:
     const uint8_t MAX_SERVER_MODEL_LENGTH = 20;
     const uint32_t MAX_REQUEST_NUM = 100000;
     const uint16_t MAX_RETRY_COUNT = 1000;
+    double_t candidateServerInterval = 0.1;
 
     uint8_t N;
     uint16_t M;
     uint16_t T;
 
-    std::unordered_map<string, uint8_t> serverMap;
-    std::unordered_map<string, uint16_t> virtualMachineMap;
-    std::unordered_map<int, uint32_t> idDeployedVMMap;  // id -> deployedVMs index
-    std::unordered_map<int, uint32_t> idVirtualMachineMap;  // id -> virtualMachines index
-
     std::vector<Server> servers;
     std::vector<VirtualMachine> virtualMachines;
-    std::vector<DeployedVirtualMachine> deployedVMs;
     std::vector<std::vector<Request>> requests;
+    std::vector<uint32_t> addRequestCounts;
+    Demand demand;
+
+    std::unordered_map<string, uint16_t> virtualMachineMap;
+    std::unordered_map<int, uint32_t> idDeployedVMMap;  // vmId -> deployedVMs index
+    std::unordered_map<int, uint32_t> idVirtualMachineMap;  // vmId -> virtualMachines index
+    std::unordered_map<uint16_t, uint16_t> purchasedServerIdxMap;  // purchasedServer id -> purchasedServers index
+
+    std::vector<uint8_t> candidateServers;
     std::vector<PurchasedServer> purchasedServers;
+    std::vector<DeployedVirtualMachine> deployedVMs;
 
-    uint8_t serverIdx{0u};
+    uint16_t today{0u};
     uint32_t deployedVMNum{0u};
-    double_t serverMemoryCpuScale{0.0};
-    double_t requestMemoryCpuScale{0.0};
+    int todayCandidateServerIdx{-1};
 
-    std::vector<string> migrationResult;
-    std::vector<string> extendResult;
-    std::vector<string> requestResult;
-    std::vector<string> ans;
+    std::vector<Result> result;
 
 #ifdef TEST
     uint32_t totalMigrationNum{0u};

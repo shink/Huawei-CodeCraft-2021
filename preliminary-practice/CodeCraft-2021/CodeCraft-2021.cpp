@@ -9,9 +9,11 @@
 
 
 int main(int argc, char *argv[]) {
+
     Handler handler;
     handler.Input();
-    handler.Solve();
+    handler.Handle();
     handler.Output();
+
     exit(0);
 }
