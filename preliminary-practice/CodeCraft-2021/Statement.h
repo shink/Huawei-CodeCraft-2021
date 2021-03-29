@@ -34,18 +34,15 @@ struct Server {
     uint16_t memorySize{};
     uint32_t hardwareCost{};
     uint16_t energyCost{};
-    double_t scale{};
 
     Server() = default;
 
-    Server(string model, uint16_t cpuCore, uint16_t memorySize, uint32_t hardwareCost, uint16_t energyCost, double_t scale) :
-            model(std::move(model)), cpuCore(cpuCore), memorySize(memorySize), hardwareCost(hardwareCost), energyCost(energyCost),
-            scale(scale) {}
+    Server(string model, uint16_t cpuCore, uint16_t memorySize, uint32_t hardwareCost, uint16_t energyCost) :
+            model(std::move(model)), cpuCore(cpuCore), memorySize(memorySize), hardwareCost(hardwareCost), energyCost(energyCost) {}
 
     string ToString() const {
         return "model: " + model + ", cpuCore: " + std::to_string(cpuCore) + ", memorySize: " + std::to_string(memorySize)
-               + ", totalHardwareCost: " + std::to_string(hardwareCost) + ", totalEnergyCost: " + std::to_string(energyCost)
-               + ", scale: " + std::to_string(scale);
+               + ", hardwareCost: " + std::to_string(hardwareCost) + ", energyCost: " + std::to_string(energyCost);
     }
 };
 
@@ -116,23 +113,6 @@ struct DeployedVirtualMachine {
             purchasedServerId(purchasedServerId), vmIdx(vmIdx), vmId(vmId), location(location) {}
 };
 
-struct Demand {
-    uint16_t maxCpuCore;
-    uint16_t maxMemorySize;
-    uint32_t maxTotalCpuCore;
-    uint32_t maxTotalMemorySize;
-
-    Demand() = default;
-
-    Demand(uint16_t maxCpuCore, uint16_t maxMemorySize, uint32_t maxTotalCpuCore, uint32_t maxTotalMemorySize) :
-            maxCpuCore(maxCpuCore), maxMemorySize(maxMemorySize), maxTotalCpuCore(maxTotalCpuCore), maxTotalMemorySize(maxTotalMemorySize) {}
-
-    string ToString() const {
-        return "maxCpuCore: " + std::to_string(maxCpuCore) + ", maxMemorySize： " + std::to_string(maxMemorySize) +
-               ", maxTotalCpuCore: " + std::to_string(maxTotalCpuCore) + ", maxTotalMemorySize: " + std::to_string(maxTotalMemorySize);
-    }
-};
-
 struct ExtendResult {
     uint8_t serverIdx{};
     uint16_t purchaseNum{};
@@ -153,8 +133,6 @@ struct RequestResult {
     LOCATION location{NONE};
 
     RequestResult() = default;
-
-    RequestResult(uint16_t purchasedServerId) : purchasedServerId(purchasedServerId) {}
 
     RequestResult(uint16_t purchasedServerId, LOCATION location) : purchasedServerId(purchasedServerId), location(location) {}
 };
