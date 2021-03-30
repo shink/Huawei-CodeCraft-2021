@@ -11,12 +11,12 @@ Handler::Handler() {}
 
 void Handler::Input() {
 #ifdef TEST
-    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\test.txt)";
-    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-1.txt)";
-    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\data\training-2.txt)";
-    // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/test.txt";
-    string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-1.txt";
-    // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/data/training-2.txt";
+    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary\data\test.txt)";
+    string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary\data\training-1.txt)";
+    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary\data\training-2.txt)";
+    // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary/data/test.txt";
+    // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary/data/training-1.txt";
+    // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary/data/training-2.txt";
 
     std::freopen(inputFile.c_str(), "r", stdin);
 #endif
@@ -42,7 +42,7 @@ void Handler::Handle() {
 
         Migrate();
         HandleRequests();
-        GatherPurchaseInformation();
+        IncreasePurchaseNumber();
         ++today;
 
 #ifdef TEST
@@ -66,8 +66,8 @@ void Handler::Handle() {
 
 void Handler::Output() {
 #ifdef TEST
-    // string outputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary-practice\output.txt)";
-    string outputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary-practice/output.txt";
+    string outputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary\output.txt)";
+    // string outputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary/output.txt";
     std::freopen(outputFile.c_str(), "w", stdout);
 #endif
 
@@ -278,7 +278,7 @@ void Handler::Migrate() {
     if (ended) return;
 
     // 将 purchasedServers 按照剩余容量升序排列
-    std::sort(purchasedServers.begin(), purchasedServers.end(), [this](const PurchasedServer &a, const PurchasedServer &b) {
+    std::sort(purchasedServers.begin(), purchasedServers.end(), [](const PurchasedServer &a, const PurchasedServer &b) {
         return a.remainCpuCoreA + a.remainCpuCoreB + a.remainMemorySizeA + a.remainMemorySizeB <
                b.remainCpuCoreA + b.remainCpuCoreB + b.remainMemorySizeA + b.remainMemorySizeB;
     });
@@ -298,7 +298,7 @@ void Handler::Migrate() {
 
             int left = 0, right = i, mid;
             while (left < right) {
-                mid = (left + right) >> 1;
+                mid = (left + right) / 2;
                 PurchasedServer &destPurchasedServer = purchasedServers[mid];
                 if (Migrate(originPurchasedServer, destPurchasedServer, deployedVMIdx) != NONE) {
                     if (++migrateNum >= threshold) ended = true;
@@ -325,7 +325,7 @@ void Handler::HandleRequests() {
     }
 }
 
-void Handler::GatherPurchaseInformation() {
+void Handler::IncreasePurchaseNumber() {
     std::vector<ExtendResult> &extendResult = result[today].extendResult;
     for (ExtendResult &res : extendResult) {
         totalPurchasedServerNum += res.purchaseNum;
@@ -579,20 +579,12 @@ void Handler::DeleteVirtualMachine(const int &vmId) {
 }
 
 LOCATION Handler::CheckCapacity(const PurchasedServer &purchasedServer, const VirtualMachine &vm) {
-    uint16_t cpuCore = vm.cpuCore;
-    uint16_t memorySize = vm.memorySize;
-    uint16_t halfCpuCore = cpuCore >> 1u;
-    uint16_t halfMemorySize = memorySize >> 1u;
-
     // 双节点
-    if (vm.nodeType) {
-        return (purchasedServer.remainCpuCoreA >= halfCpuCore && purchasedServer.remainMemorySizeA >= halfMemorySize &&
-                purchasedServer.remainCpuCoreB >= halfCpuCore && purchasedServer.remainMemorySizeB >= halfMemorySize) ? ALL : NONE;
-    }
+    if (vm.nodeType) return CheckCapacity(purchasedServer, vm, ALL) ? ALL : NONE;
 
     // 单节点
-    bool a = purchasedServer.remainCpuCoreA >= cpuCore && purchasedServer.remainMemorySizeA >= memorySize;
-    bool b = purchasedServer.remainCpuCoreB >= cpuCore && purchasedServer.remainMemorySizeB >= memorySize;
+    bool a = CheckCapacity(purchasedServer, vm, NODE_A);
+    bool b = CheckCapacity(purchasedServer, vm, NODE_B);
     if (a && b) return ALL;
     else if (a) return NODE_A;
     else if (b) return NODE_B;
@@ -669,26 +661,28 @@ void Handler::DeployVirtualMachine(const uint16_t &purchasedServerIdx, const Req
     uint16_t cpuCore = vm.cpuCore;
     uint16_t memorySize = vm.memorySize;
 
-    if (location == ALL) {
-        uint16_t halfCpuCore = cpuCore >> 1u;
-        uint16_t halfMemorySize = memorySize >> 1u;
-        purchasedServer.remainCpuCoreA -= halfCpuCore;
-        purchasedServer.remainCpuCoreB -= halfCpuCore;
-        purchasedServer.remainMemorySizeA -= halfMemorySize;
-        purchasedServer.remainMemorySizeB -= halfMemorySize;
-        requestResult->location = ALL;
-
-    } else if (location == NODE_A) {
-        purchasedServer.remainCpuCoreA -= cpuCore;
-        purchasedServer.remainMemorySizeA -= memorySize;
-        deployedVM->location = true;
-        requestResult->location = NODE_A;
-
-    } else if (location == NODE_B) {
-        purchasedServer.remainCpuCoreB -= cpuCore;
-        purchasedServer.remainMemorySizeB -= memorySize;
-        deployedVM->location = false;
-        requestResult->location = NODE_B;
+    switch (location) {
+        case NODE_A:
+            purchasedServer.remainCpuCoreA -= cpuCore;
+            purchasedServer.remainMemorySizeA -= memorySize;
+            deployedVM->location = true;
+            requestResult->location = NODE_A;
+            break;
+        case NODE_B:
+            purchasedServer.remainCpuCoreB -= cpuCore;
+            purchasedServer.remainMemorySizeB -= memorySize;
+            deployedVM->location = false;
+            requestResult->location = NODE_B;
+            break;
+        case ALL:
+            purchasedServer.remainCpuCoreA -= cpuCore >> 1u;
+            purchasedServer.remainCpuCoreB -= cpuCore >> 1u;
+            purchasedServer.remainMemorySizeA -= memorySize >> 1u;
+            purchasedServer.remainMemorySizeB -= memorySize >> 1u;
+            requestResult->location = ALL;
+            break;
+        default:
+            return;
     }
 
     ++deployedVMNum;

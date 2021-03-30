@@ -34,7 +34,7 @@ private:
 
     void HandleRequests();
 
-    void GatherPurchaseInformation();
+    void IncreasePurchaseNumber();
 
     uint16_t Purchase(const VirtualMachine &vm);
 
