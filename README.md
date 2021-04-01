@@ -1,13 +1,19 @@
-# Preliminary
+# Huawei-CodeCraft-2021
 
-## Local score
+## Team
 
-|               | training-1.txt | training-2.txt |
-| :-----------: | :------------: | :------------: |
-|  Total cost   |   600243067    |   503033410    |
-| Hardware cost |   361611890    |   327600116    |
-|  Energy cost  |   238631177    |   175433294    |
-| Migrate count |     62281      |     56534      |
-| Elapsed time  |    1.8624s     |     2.769s     |
+你这个服务器很漂亮哦
 
-> Local hardware configuration: AMD Ryzen 5 3600X, Samsung PM981A 512G
+- qiaotongxue
+
+- jiyuanhao
+
+## Score
+
+- preliminary: 西北赛区 Rank 11
+  
+    - Total cost: 1447145088 
+      
+    - Migrate count: 88443
+    
+    - Elapsed time: 88.747s
