@@ -52,13 +52,13 @@ private:
 
     LOCATION CheckCapacity(const PurchasedServer &purchasedServer, const VirtualMachine &vm);
 
-    bool CheckCapacity(const PurchasedServer &purchasedServer, const VirtualMachine &vm, const LOCATION &location);
+    static bool CheckCapacity(const PurchasedServer &purchasedServer, const VirtualMachine &vm, const LOCATION &location);
 
-    inline bool CheckCapacity(const Server &server, const VirtualMachine &vm);
+    static inline bool CheckCapacity(const Server &server, const VirtualMachine &vm);
 
     double_t CalculatePurchasedServerValue(const PurchasedServer &purchasedServer, const VirtualMachine &vm, const LOCATION &location);
 
-    inline double_t CalculatePurchasedServerValue(uint16_t cpuCore, uint16_t memorySize, uint16_t energyCost);
+    static inline double_t CalculatePurchasedServerValue(uint16_t cpuCore, uint16_t memorySize, uint16_t energyCost);
 
 
     const uint8_t MAX_N = 100u;

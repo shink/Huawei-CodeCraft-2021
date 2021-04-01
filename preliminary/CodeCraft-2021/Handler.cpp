@@ -289,8 +289,7 @@ void Handler::Migrate() {
     for (int i = (int) purchasedServers.size() - 1; i >= 0 && !ended; --i) {
         PurchasedServer &originPurchasedServer = purchasedServers[i];
         std::unordered_set<uint32_t> &deployedVM = originPurchasedServer.deployedVM;
-        std::vector<uint32_t> tmp;
-        for (auto &deployedVMIdx : deployedVM) tmp.emplace_back(deployedVMIdx);
+        std::vector<uint32_t> tmp(deployedVM.begin(), deployedVM.end());
         SortDeployedVM(tmp);
 
         for (const uint32_t &deployedVMIdx : tmp) {
