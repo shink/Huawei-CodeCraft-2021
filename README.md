@@ -8,6 +8,6 @@
 | Hardware cost |   361611890    |   327600116    |
 |  Energy cost  |   238631177    |   175433294    |
 | Migrate count |     62281      |     56534      |
-| Elpased time  |    1.8624s     |     2.769s     |
+| Elapsed time  |    1.8624s     |     2.769s     |
 
 > Local hardware configuration: AMD Ryzen 5 3600X, Samsung PM981A 512G
