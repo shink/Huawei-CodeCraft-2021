@@ -3,4 +3,5 @@ project(HuaWei_CodeCraft_2021)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_subdirectory(preliminary/CodeCraft-2021)
+#add_subdirectory(preliminary/CodeCraft-2021)
+add_subdirectory(semifinal/CodeCraft-2021)
