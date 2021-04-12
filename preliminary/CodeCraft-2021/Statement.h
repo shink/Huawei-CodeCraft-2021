@@ -86,6 +86,7 @@ struct PurchasedServer {
     uint16_t remainCpuCoreB{};
     uint16_t remainMemorySizeA{};
     uint16_t remainMemorySizeB{};
+    double_t vacancyRate{};
     std::unordered_set<uint32_t> deployedVM{};
 
     PurchasedServer() = default;
@@ -95,9 +96,10 @@ struct PurchasedServer {
             remainMemorySizeA(memorySize >> 1u), remainMemorySizeB(memorySize >> 1u) {}
 
     string ToString() const {
-        return "id: " + std::to_string(id) + ", candidateServerIdx: " + std::to_string(serverIdx)
+        return "id: " + std::to_string(id) + ", serverIdx: " + std::to_string(serverIdx)
                + ", remainCpuCoreA: " + std::to_string(remainCpuCoreA) + ", remainCpuCoreB: " + std::to_string(remainCpuCoreB)
-               + ", remainMemorySizeA: " + std::to_string(remainMemorySizeA) + ", remainMemorySizeB: " + std::to_string(remainMemorySizeB);
+               + ", remainMemorySizeA: " + std::to_string(remainMemorySizeA) + ", remainMemorySizeB: " + std::to_string(remainMemorySizeB)
+               + ", vacancyRate: " + std::to_string(vacancyRate);
     }
 };
 

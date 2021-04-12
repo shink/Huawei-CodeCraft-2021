@@ -38,11 +38,10 @@ private:
 
     uint16_t Purchase(const VirtualMachine &vm);
 
-    LOCATION Migrate(PurchasedServer &originPurchasedServer, PurchasedServer &destPurchasedServer, const uint32_t &deployedVMIdx);
+    void Migrate(PurchasedServer &originPurchasedServer, const LOCATION &originLocation,
+                 PurchasedServer &destPurchasedServer, const LOCATION &destLocation, const uint32_t &deployedVMIdx);
 
     void ReMapPurchasedServerIdx();
-
-    void SortDeployedVM(std::vector<uint32_t> &deployedVM);
 
     void AddVirtualMachine(const Request &req);
 
@@ -50,25 +49,28 @@ private:
 
     void DeleteVirtualMachine(const int &vmId);
 
-    LOCATION CheckCapacity(const PurchasedServer &purchasedServer, const VirtualMachine &vm);
-
     static bool CheckCapacity(const PurchasedServer &purchasedServer, const VirtualMachine &vm, const LOCATION &location);
 
     static inline bool CheckCapacity(const Server &server, const VirtualMachine &vm);
 
+    static double_t CalculatePurchasedServerRate(const PurchasedServer &purchasedServer, const LOCATION &location);
+
     double_t CalculatePurchasedServerValue(const PurchasedServer &purchasedServer, const VirtualMachine &vm, const LOCATION &location);
 
-    static inline double_t CalculatePurchasedServerValue(uint16_t cpuCore, uint16_t memorySize, uint16_t energyCost);
+    static inline double_t CalculateValue(uint16_t cpuCore, uint16_t memorySize);
+
+    static inline double_t CalculateValue(uint16_t cpuCore, uint16_t memorySize, uint16_t energyCost);
 
 
-    const uint8_t MAX_N = 100u;
-    const uint16_t MAX_M = 1000u;
-    const uint16_t MAX_T = 1000u;
-    const uint16_t MAX_CPU_CORE = 1024u;
-    const uint16_t MAX_MEMORY_SIZE = 1024u;
-    const uint8_t MAX_SERVER_MODEL_LENGTH = 20u;
-    const uint32_t MAX_REQUEST_NUM = 100000u;
-    const uint16_t MAX_RETRY_COUNT = 1000u;
+    static const uint8_t MAX_N = 100u;
+    static const uint16_t MAX_M = 1000u;
+    static const uint16_t MAX_T = 1000u;
+    static const uint16_t MAX_CPU_CORE = 1024u;
+    static const uint16_t MAX_MEMORY_SIZE = 1024u;
+    static const uint8_t MAX_SERVER_MODEL_LENGTH = 20u;
+    static const uint32_t MAX_REQUEST_NUM = 100000u;
+    static const uint16_t MAX_RETRY_COUNT = 1000u;
+    static const uint16_t MAX_PURCHASED_SERVER_NUM = 10000u;
 
     uint8_t N{0u};
     uint16_t M{0u};
@@ -82,7 +84,8 @@ private:
     std::unordered_map<string, uint16_t> virtualMachineMap;
     std::unordered_map<int, uint32_t> idDeployedVMMap;  // vmId -> deployedVMs index
     std::unordered_map<int, uint32_t> idVirtualMachineMap;  // vmId -> virtualMachines index
-    std::unordered_map<uint16_t, uint16_t> purchasedServerIdxMap;  // purchasedServer id -> purchasedServers index
+    uint16_t purchasedServerIdxMap[MAX_PURCHASED_SERVER_NUM];   // purchasedServer id -> purchasedServers index
+    double_t values[MAX_REQUEST_NUM];    // purchasedServer values
 
     std::vector<PurchasedServer> purchasedServers;
     std::vector<DeployedVirtualMachine> deployedVMs;
