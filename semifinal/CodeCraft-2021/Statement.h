@@ -10,14 +10,21 @@
 #define HUAWEI_CODECRAFT_2021_STATEMENT_H
 
 #include <bits/stdc++.h>
+#include <sys/stat.h>
 
 #define TEST
 
 #ifdef TEST
-#define PrintLog(...)           \
-    printf(__VA_ARGS__)
-#else
-#define PrintLog(...)
+// #define INPUT_FILE "D:/GitHub Repository/Huawei-CodeCraft-2021/semifinal/data/training-1.txt"
+// #define INPUT_FILE "D:/GitHub Repository/Huawei-CodeCraft-2021/semifinal/data/training-2.txt"
+#define INPUT_FILE "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/semifinal/data/training-1.txt"
+// #define INPUT_FILE "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/semifinal/data/training-2.txt"
+
+// #define OUTPUT_FILE "D:/GitHub Repository/Huawei-CodeCraft-2021/semifinal/output.txt"
+#define OUTPUT_FILE "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/semifinal/output.txt"
+
+// #define LOG_FILE "D:/GitHub Repository/Huawei-CodeCraft-2021/semifinal/log.txt"
+#define LOG_FILE "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/semifinal/log.txt"
 #endif
 
 
@@ -34,6 +41,7 @@ struct Server {
     uint16_t memorySize{};
     uint32_t hardwareCost{};
     uint16_t energyCost{};
+    double_t scale{};
 
     Server() = default;
 
@@ -42,7 +50,8 @@ struct Server {
 
     string ToString() const {
         return "model: " + model + ", cpuCore: " + std::to_string(cpuCore) + ", memorySize: " + std::to_string(memorySize)
-               + ", hardwareCost: " + std::to_string(hardwareCost) + ", energyCost: " + std::to_string(energyCost);
+               + ", hardwareCost: " + std::to_string(hardwareCost) + ", energyCost: " + std::to_string(energyCost)
+               + ", scale: " + std::to_string(scale);
     }
 };
 
@@ -82,6 +91,7 @@ struct Request {
 struct PurchasedServer {
     uint16_t id{};
     uint8_t serverIdx{};
+    uint8_t vacancyRate{};
     uint16_t remainCpuCoreA{};
     uint16_t remainCpuCoreB{};
     uint16_t remainMemorySizeA{};
@@ -90,12 +100,12 @@ struct PurchasedServer {
 
     PurchasedServer() = default;
 
-    PurchasedServer(uint16_t id, uint8_t serverIdx, uint16_t cpuCore, uint16_t memorySize) :
-            id(id), serverIdx(serverIdx), remainCpuCoreA(cpuCore >> 1u), remainCpuCoreB(cpuCore >> 1u),
+    PurchasedServer(uint16_t id, uint8_t serverIdx, uint8_t vacancyRate, uint16_t cpuCore, uint16_t memorySize) :
+            id(id), serverIdx(serverIdx), vacancyRate(vacancyRate), remainCpuCoreA(cpuCore >> 1u), remainCpuCoreB(cpuCore >> 1u),
             remainMemorySizeA(memorySize >> 1u), remainMemorySizeB(memorySize >> 1u) {}
 
     string ToString() const {
-        return "id: " + std::to_string(id) + ", candidateServerIdx: " + std::to_string(serverIdx)
+        return "id: " + std::to_string(id) + ", serverIdx: " + std::to_string(serverIdx) + ", vacancyRate: " + std::to_string(vacancyRate)
                + ", remainCpuCoreA: " + std::to_string(remainCpuCoreA) + ", remainCpuCoreB: " + std::to_string(remainCpuCoreB)
                + ", remainMemorySizeA: " + std::to_string(remainMemorySizeA) + ", remainMemorySizeB: " + std::to_string(remainMemorySizeB);
     }

@@ -7,12 +7,13 @@
 
 #include "Handler.h"
 
-
 int main(int argc, char *argv[]) {
 
     Handler handler;
+    handler.Init();
     handler.Input();
     handler.Handle();
+    handler.Release();
 
     exit(0);
 }
