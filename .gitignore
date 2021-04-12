@@ -1,8 +1,9 @@
-.idea/
-cmake-build-debug/
+.idea
+cmake-build-debug
 bin
 build
 answer
 reference
 main.cpp
 output.txt
+log.txt

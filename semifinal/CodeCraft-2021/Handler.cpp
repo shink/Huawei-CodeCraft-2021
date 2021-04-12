@@ -1,6 +1,6 @@
 /*
  * @author: shenke
- * @date: 2021/3/12
+ * @date: 2021/3/30
  * @project: HuaWei_CodeCraft_2021
  * @desp:
  */
@@ -10,116 +10,93 @@
 Handler::Handler() {
 }
 
-void Handler::Input() {
+void Handler::Init() {
 #ifdef TEST
-    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary\data\test.txt)";
-    string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary\data\training-1.txt)";
-    // string inputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary\data\training-2.txt)";
-    // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary/data/test.txt";
-    // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary/data/training-1.txt";
-    // string inputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary/data/training-2.txt";
+    // 清空 log.txt 和 output.txt
+    struct stat output{};
+    if (stat(OUTPUT_FILE, &output) == 0) {
+        std::fstream file(OUTPUT_FILE, std::ios::out);
+    }
 
-    std::freopen(inputFile.c_str(), "r", stdin);
+    struct stat log{};
+    if (stat(LOG_FILE, &log) == 0) {
+        std::fstream file(LOG_FILE, std::ios::out);
+    }
+
+    LOG.open(LOG_FILE, std::ios::app);
+    freopen(INPUT_FILE, "r", stdin);
+    freopen(OUTPUT_FILE, "w", stdout);
+
+    start = std::chrono::system_clock::now();
 #endif
+}
 
+void Handler::Input() {
     InputServer();
     InputVirtualMachine();
-    InputRequest();
-
-#ifdef TEST
-    fclose(stdin);
-#endif
 }
 
 void Handler::Handle() {
-#ifdef TEST
-    auto start = std::chrono::system_clock::now();
-#endif
+    // 将 servers 按照 energyCost 的和进行升序排列
+    std::sort(servers.begin(), servers.end(), [](const Server &a, const Server &b) {
+        return a.energyCost < b.energyCost;
+    });
 
-    Init();
+    string TStr, KStr;
+    std::cin >> TStr >> KStr;
+    T = (uint16_t) std::stoi(TStr);
+    K = (uint16_t) std::stoi(KStr);
+    requests.resize(T);
+    addRequestCounts.resize(T);
+    result.resize(T);
 
-    for (uint16_t i = 0u; i < T; ++i) {
-        PrintLog("Handling %u day\n", today + 1u);
+    // 输入 k 天
+    InputRequest(0u, K);
 
-        Migrate();
-        HandleRequests();
-        IncreasePurchaseNumber();
-        ++today;
+    uint16_t n = T - K;
+    for (uint16_t i = 0u; i < n; ++i) {
+        // 处理 1 天
+        Handle(i, i + 1u);
 
-#ifdef TEST
-        for (auto &purchasedServer : purchasedServers) {
-            if (purchasedServer.deployedVM.empty()) continue;
-            totalEnergyCost += servers[purchasedServer.serverIdx].energyCost;
-        }
-#endif
+        // 输出 1 天
+        Output(i, i + 1u);
+
+        // 输入 1 天
+        InputRequest(K + i, K + i + 1u);
     }
 
-    PrintLog("Hardware cost: %lu\n", totalHardwareCost);
-    PrintLog("Energy cost: %lu\n", totalEnergyCost);
-    PrintLog("Total cost: %lu\n", totalHardwareCost + totalEnergyCost);
-    PrintLog("Total migration num: %u\n", totalMigrationNum);
+    // 最后处理第 T - K + 1 天到第 T 天
+    Handle(n, T);
 
-#ifdef TEST
-    std::chrono::duration<double, std::milli> duration = std::chrono::system_clock::now() - start;
-    PrintLog("Handle elapsed time: %.4fms\n", duration.count());
-#endif
+    // 最后输出第 T - K + 1 天到第 T 天
+    Output(n, T);
 }
 
-void Handler::Output() {
+void Handler::Release() {
 #ifdef TEST
-    string outputFile = R"(D:\GitHub Repository\Huawei-CodeCraft-2021\preliminary\output.txt)";
-    // string outputFile = "/home/shenke/Develop/Repository/Huawei-CodeCraft-2021/preliminary/output.txt";
-    std::freopen(outputFile.c_str(), "w", stdout);
-#endif
+    OutputLog("Hardware cost: " + std::to_string(totalHardwareCost));
+    OutputLog("Energy cost: " + std::to_string(totalEnergyCost));
+    OutputLog("Total cost: " + std::to_string(totalHardwareCost + totalEnergyCost));
+    OutputLog("Total migration num: " + std::to_string(totalMigrationNum));
 
-    for (const Result &res : result) {
-        const std::vector<ExtendResult> &extendResult = res.extendResult;
-        // 扩容结果
-        std::cout << "(purchase, " << extendResult.size() << ")\n";
-        for (const ExtendResult &extendRes : extendResult) {
-            std::cout << "(" << servers[extendRes.serverIdx].model << ", " << extendRes.purchaseNum << ")\n";
-        }
+    std::chrono::duration<double, std::milli> duration = std::chrono::system_clock::now() - start;
+    OutputLog("Handle elapsed time: " + std::to_string(duration.count()) + "ms");
 
-        // 迁移结果
-        const std::vector<MigrateResult> &migrateResult = res.migrateResult;
-        std::cout << "(migration, " << migrateResult.size() << ")\n";
-        for (const MigrateResult &migrateRes : migrateResult) {
-            if (migrateRes.location == ALL) {
-                std::cout << "(" << migrateRes.vmId << ", " << migrateRes.purchasedServerId << ")\n";
-            } else if (migrateRes.location == NODE_A) {
-                std::cout << "(" << migrateRes.vmId << ", " << migrateRes.purchasedServerId << ", A)\n";
-            } else if (migrateRes.location == NODE_B) {
-                std::cout << "(" << migrateRes.vmId << ", " << migrateRes.purchasedServerId << ", B)\n";
-            }
-        }
-
-        // 部署结果
-        const std::vector<RequestResult> &requestResult = res.requestResult;
-        for (const RequestResult &requestRes : requestResult) {
-            if (requestRes.location == ALL) {
-                std::cout << "(" << requestRes.purchasedServerId << ")\n";
-            } else if (requestRes.location == NODE_A) {
-                std::cout << "(" << requestRes.purchasedServerId << ", A)\n";
-            } else if (requestRes.location == NODE_B) {
-                std::cout << "(" << requestRes.purchasedServerId << ", B)\n";
-            }
-        }
-    }
-
-#ifdef TEST
+    fclose(stdin);
     fclose(stdout);
+    LOG.close();
 #endif
 }
 
 void Handler::InputServer() {
-    string numStr, modelStr, cpuCoreStr, memorySizeStr, hardwareCostStr, energyCostStr;
+    string NStr, modelStr, cpuCoreStr, memorySizeStr, hardwareCostStr, energyCostStr;
     uint16_t cpuCore;
     uint16_t memorySize;
     uint32_t hardwareCost;
     uint16_t energyCost;
 
-    std::cin >> numStr;
-    N = (uint8_t) std::stoi(numStr);
+    std::cin >> NStr;
+    N = (uint8_t) std::stoi(NStr);
     servers.resize(N);
 
     for (uint8_t i = 0u; i < N; ++i) {
@@ -152,19 +129,18 @@ void Handler::InputServer() {
         }
         server->energyCost = energyCost;
 
+        server->scale = (double_t) memorySize / (double_t) cpuCore;
         servers[i] = *server;
     }
-
-    PrintLog("Server model num: %u\n", N);
 }
 
 void Handler::InputVirtualMachine() {
-    string numStr, modelStr, cpuCoreStr, memorySizeStr, nodeNumStr;
+    string MStr, modelStr, cpuCoreStr, memorySizeStr, nodeNumStr;
     uint16_t cpuCore;
     uint16_t memorySize;
 
-    std::cin >> numStr;
-    M = (uint16_t) std::stoi(numStr);
+    std::cin >> MStr;
+    M = (uint16_t) std::stoi(MStr);
     virtualMachines.resize(M);
 
     for (uint16_t i = 0u; i < M; ++i) {
@@ -189,24 +165,17 @@ void Handler::InputVirtualMachine() {
         virtualMachines[i] = *vm;
         virtualMachineMap[virtualMachines[i].model] = i;
     }
-
-    PrintLog("VM model num: %u\n", M);
 }
 
-void Handler::InputRequest() {
-    string numStr;
-    std::cin >> numStr;
-    T = (uint16_t) std::stoi(numStr);
-    requests.resize(T);
-    addRequestCounts.resize(T);
-    result.resize(T);
-
+void Handler::InputRequest(const uint16_t &startDay, const uint16_t &endDay) {
+    string RStr;
     uint16_t vmIdx;
-    for (uint16_t i = 0u; i < T; ++i) {
+
+    for (uint16_t i = startDay; i < endDay; ++i) {
         uint32_t R;
         string operationStr, modelStr, idStr;
-        std::cin >> numStr;
-        R = (uint16_t) std::stoi(numStr);
+        std::cin >> RStr;
+        R = (uint16_t) std::stoi(RStr);
         result[i].requestResult.resize(R);
         std::vector<Request> request(R);
         uint32_t addRequestCount = 0u;
@@ -242,114 +211,98 @@ void Handler::InputRequest() {
         requests[i] = request;
         addRequestCounts[i] = addRequestCount;
     }
-
-    PrintLog("Request day num: %u\n", T);
 }
 
-void Handler::Init() {
-    // 将 servers 按照 energyCost 的和进行升序排列
-    std::sort(servers.begin(), servers.end(), [](const Server &a, const Server &b) {
-        return a.energyCost < b.energyCost;
-    });
+void Handler::Output(const uint16_t &startDay, const uint16_t &endDay) {
+    for (uint16_t i = startDay; i < endDay; ++i) {
+        const Result &res = result[i];
 
-    // 将 requests 按照 cpu + mem 大小进行降序排列
-    for (uint16_t i = 0u; i < T; ++i) {
-        std::vector<Request> &request = requests[i];
-        uint32_t j = 0u, R = request.size();
-        uint32_t left, right;
-        while (j < R) {
-            left = j;
-            while (left < R && !request[left].add) ++left;
-            right = left;
-            while (right < R && request[right].add) ++right;
-            std::sort(request.begin() + left, request.begin() + right, [this](const Request &a, const Request &b) {
-                VirtualMachine &vm1 = virtualMachines[a.vmIdx];
-                VirtualMachine &vm2 = virtualMachines[b.vmIdx];
-                return vm1.cpuCore + vm1.memorySize > vm2.cpuCore + vm2.memorySize;
-            });
-            j = right;
+        // 扩容结果
+        const std::vector<ExtendResult> &extendResult = res.extendResult;
+        std::cout << "(purchase, " << extendResult.size() << ")\n";
+        for (const ExtendResult &extendRes : extendResult) {
+            std::cout << "(" << servers[extendRes.serverIdx].model << ", " << extendRes.purchaseNum << ")\n";
         }
+
+        // 迁移结果
+        const std::vector<MigrateResult> &migrateResult = res.migrateResult;
+        std::cout << "(migration, " << migrateResult.size() << ")\n";
+        for (const MigrateResult &migrateRes : migrateResult) {
+            if (migrateRes.location == ALL) {
+                std::cout << "(" << migrateRes.vmId << ", " << migrateRes.purchasedServerId << ")\n";
+            } else if (migrateRes.location == NODE_A) {
+                std::cout << "(" << migrateRes.vmId << ", " << migrateRes.purchasedServerId << ", A)\n";
+            } else if (migrateRes.location == NODE_B) {
+                std::cout << "(" << migrateRes.vmId << ", " << migrateRes.purchasedServerId << ", B)\n";
+            }
+        }
+
+        // 部署结果
+        const std::vector<RequestResult> &requestResult = res.requestResult;
+        for (const RequestResult &requestRes : requestResult) {
+            if (requestRes.location == ALL) {
+                std::cout << "(" << requestRes.purchasedServerId << ")\n";
+            } else if (requestRes.location == NODE_A) {
+                std::cout << "(" << requestRes.purchasedServerId << ", A)\n";
+            } else if (requestRes.location == NODE_B) {
+                std::cout << "(" << requestRes.purchasedServerId << ", B)\n";
+            }
+        }
+    }
+
+    fflush(stdout);
+}
+
+void Handler::Handle(const uint16_t &startDay, const uint16_t &endDay) {
+    for (uint16_t i = startDay; i < endDay; ++i) {
+        Migrate();
+        HandleRequests();
+        IncreasePurchaseNumber();
+        ++today;
+
+#ifdef TEST
+        for (auto &purchasedServer : purchasedServers) {
+            if (purchasedServer.deployedVM.empty()) continue;
+            totalEnergyCost += servers[purchasedServer.serverIdx].energyCost;
+        }
+#endif
     }
 }
 
 void Handler::Migrate() {
-    uint32_t threshold = deployedVMNum / 200u;
+    uint32_t threshold = deployedVMNum * 3u / 100u;
     uint32_t migrateNum = 0u;
     bool ended = (migrateNum >= threshold);
     if (ended) return;
 
-    // 将 purchasedServers 按照空闲率降序排列
+    // 将 purchasedServers 按照剩余容量升序排列
     std::sort(purchasedServers.begin(), purchasedServers.end(), [](const PurchasedServer &a, const PurchasedServer &b) {
-        return a.vacancyRate > b.vacancyRate;
+        return a.vacancyRate != b.vacancyRate ? a.vacancyRate < b.vacancyRate :
+               a.remainCpuCoreA + a.remainCpuCoreB + a.remainMemorySizeA + a.remainMemorySizeB <
+               b.remainCpuCoreA + b.remainCpuCoreB + b.remainMemorySizeA + b.remainMemorySizeB;;
     });
     // 排序后需要重新映射 purchasedServer id -> purchasedServers index
     ReMapPurchasedServerIdx();
-    // 将排好序的每个 purchasedServer 的 deployedVMIdx 顺序放入 vector
-    uint32_t idx = 0u;
-    std::vector<uint32_t> deployedVMIdxMap(deployedVMNum);
-    for (const PurchasedServer &purchasedServer : purchasedServers) {
-        for (const uint32_t &deployedVMIdx : purchasedServer.deployedVM) {
-            deployedVMIdxMap[idx++] = deployedVMIdx;
-        }
-    }
 
-    idx = 0u;
-    while (migrateNum < threshold && idx < deployedVMNum) {
-        uint32_t deployedVMIdx = deployedVMIdxMap[idx++];
-        DeployedVirtualMachine &deployedVM = deployedVMs[deployedVMIdx];
+    // originPurchasedServer -> destPurchasedServer
+    for (int i = (int) purchasedServers.size() - 1; i >= 0 && !ended; --i) {
+        PurchasedServer &originPurchasedServer = purchasedServers[i];
+        std::unordered_set<uint32_t> &deployedVM = originPurchasedServer.deployedVM;
+        std::vector<uint32_t> tmp(deployedVM.begin(), deployedVM.end());
+        SortDeployedVM(tmp);
 
-        const VirtualMachine &vm = virtualMachines[deployedVM.vmIdx];
-        PurchasedServer &originPurchasedServer = purchasedServers[purchasedServerIdxMap[deployedVM.purchasedServerId]];
-        int size = (int) purchasedServers.size();
+        for (const uint32_t &deployedVMIdx : tmp) {
+            if (ended) break;
 
-        if (vm.nodeType) {
-            // 双节点迁移
-            for (int i = 0; i < size; ++i) {
-                values[i] = CalculatePurchasedServerValue(purchasedServers[i], vm, ALL);
-            }
-            double minValue = CalculatePurchasedServerRate(originPurchasedServer, ALL);
-            int minValueIdx = -1;
-            for (int i = 0; i < size; ++i) {
-                if (values[i] > 0 && values[i] < minValue) {
-                    minValue = values[i];
-                    minValueIdx = i;
-                }
-            }
-            if (minValueIdx != -1) {
-                // 可以有更好的服务器来部署,则迁移
-                // 排除原地迁移的情况
-                PurchasedServer &destPurchasedServer = purchasedServers[minValueIdx];
-                if (originPurchasedServer.id != destPurchasedServer.id) {
-                    Migrate(originPurchasedServer, ALL, destPurchasedServer, ALL, deployedVMIdx);
-                    ++migrateNum;
-                }
-            }
-        } else {
-            // 单节点迁移
-            uint32_t val_size = (size << 1);
-            // 计算每个服务器对应的指标值
-            for (int i = 0; i < size; ++i) {
-                PurchasedServer &purchasedServer = purchasedServers[i];
-                values[(i << 1)] = CalculatePurchasedServerValue(purchasedServer, vm, NODE_A);
-                values[(i << 1) + 1] = CalculatePurchasedServerValue(purchasedServer, vm, NODE_B);
-            }
-            double minValue = CalculatePurchasedServerRate(originPurchasedServer, ALL);
-            int minValueIdx = -1;
-            for (int i = 0; i < (size << 1); ++i) {
-                if (values[i] > 0 && values[i] < minValue) {
-                    minValue = values[i];
-                    minValueIdx = i;
-                }
-            }
-            if (minValueIdx != -1) {
-                // 可以有更好的服务器来部署,则迁移
-                // 排除原地迁移的情况
-                PurchasedServer &destPurchasedServer = purchasedServers[minValueIdx >> 1];
-                LOCATION originLocation = deployedVM.location ? NODE_A : NODE_B;
-                LOCATION destLocation = (minValueIdx & 1) == 0 ? NODE_A : NODE_B;
-                if (originPurchasedServer.id != destPurchasedServer.id && originLocation != destLocation) {
-                    Migrate(originPurchasedServer, originLocation, destPurchasedServer, destLocation, deployedVMIdx);
-                    ++migrateNum;
+            int left = 0, right = i, mid;
+            while (left < right) {
+                mid = (left + right) / 2;
+                PurchasedServer &destPurchasedServer = purchasedServers[mid];
+                if (Migrate(originPurchasedServer, destPurchasedServer, deployedVMIdx) != NONE) {
+                    if (++migrateNum >= threshold) ended = true;
+                    break;
+                } else {
+                    left = mid + 1;
                 }
             }
         }
@@ -361,6 +314,7 @@ void Handler::Migrate() {
 }
 
 void Handler::HandleRequests() {
+    SortRequest(today);
     std::vector<Request> &request = requests[today];
     for (const Request &req : request) {
         if (req.add)
@@ -375,6 +329,34 @@ void Handler::IncreasePurchaseNumber() {
     for (ExtendResult &res : extendResult) {
         totalPurchasedServerNum += res.purchaseNum;
     }
+}
+
+LOCATION Handler::Migrate(PurchasedServer &originPurchasedServer, PurchasedServer &destPurchasedServer, const uint32_t &deployedVMIdx) {
+    DeployedVirtualMachine &deployedVM = deployedVMs[deployedVMIdx];
+    VirtualMachine &vm = virtualMachines[deployedVM.vmIdx];
+
+    LOCATION destLocation = CheckCapacity(destPurchasedServer, vm);
+    if (destLocation == NONE) return NONE;
+
+    // 双节点
+    if (vm.nodeType && destLocation == ALL) {
+        Migrate(originPurchasedServer, ALL, destPurchasedServer, ALL, deployedVMIdx);
+        return ALL;
+    }
+
+    // 单节点
+    bool flag = destPurchasedServer.remainCpuCoreA + destPurchasedServer.remainMemorySizeA > destPurchasedServer.remainCpuCoreB + destPurchasedServer.remainMemorySizeB;
+    if (destLocation == NODE_A || (destLocation == ALL && flag)) {
+        Migrate(originPurchasedServer, deployedVM.location ? NODE_A : NODE_B, destPurchasedServer, NODE_A, deployedVMIdx);
+        return NODE_A;
+    }
+
+    if (destLocation == NODE_B || (destLocation == ALL)) {
+        Migrate(originPurchasedServer, deployedVM.location ? NODE_A : NODE_B, destPurchasedServer, NODE_B, deployedVMIdx);
+        return NODE_B;
+    }
+
+    return NONE;
 }
 
 void Handler::Migrate(PurchasedServer &originPurchasedServer, const LOCATION &originLocation,
@@ -392,7 +374,7 @@ void Handler::Migrate(PurchasedServer &originPurchasedServer, const LOCATION &or
     uint16_t halfCpuCore = vm.cpuCore >> 1u;
     uint16_t halfMemorySize = vm.memorySize >> 1u;
 
-    // 删除原 originPurchasedServer 中的 deployedVM
+    // 删除 originPurchasedServer 中的 deployedVM
     if (originLocation == ALL) {
         originPurchasedServer.remainCpuCoreA += halfCpuCore;
         originPurchasedServer.remainCpuCoreB += halfCpuCore;
@@ -406,7 +388,7 @@ void Handler::Migrate(PurchasedServer &originPurchasedServer, const LOCATION &or
         originPurchasedServer.remainMemorySizeB += memorySize;
     }
     originPurchasedServer.deployedVM.erase(deployedVMIdx);
-    originPurchasedServer.vacancyRate = CalculatePurchasedServerRate(originPurchasedServer, ALL);
+    originPurchasedServer.vacancyRate = CalculateVacancyRate(originPurchasedServer);
 
     // 将 deployedVM 添加到 destPurchasedServer
     if (destLocation == ALL) {
@@ -424,7 +406,7 @@ void Handler::Migrate(PurchasedServer &originPurchasedServer, const LOCATION &or
         deployedVM.location = false;
     }
     destPurchasedServer.deployedVM.emplace(deployedVMIdx);
-    destPurchasedServer.vacancyRate = CalculatePurchasedServerRate(destPurchasedServer, ALL);
+    destPurchasedServer.vacancyRate = CalculateVacancyRate(destPurchasedServer);
 
     deployedVM.purchasedServerId = destPurchasedServerId;
     result[today].migrateResult.emplace_back(vmId, destPurchasedServerId, destLocation);
@@ -441,10 +423,10 @@ void Handler::AddVirtualMachine(const Request &req) {
     if (vm.nodeType) {
         // 双节点
         for (uint16_t i = 0u; i < n; ++i) {
-            values[i] = CalculatePurchasedServerValue(purchasedServers[i], vm, ALL);
+            values[i] = CalculateDeployValue(purchasedServers[i], vm, ALL);
         }
 
-        double_t minValue = 1e10;
+        uint32_t minValue = 0xffffffff;
         bool exist = false;
         uint16_t idx = 0u;
         // 找到不为 0 的所有参数中的最小的那个
@@ -465,11 +447,11 @@ void Handler::AddVirtualMachine(const Request &req) {
     } else {
         // 单节点
         for (uint16_t i = 0u; i < n; ++i) {
-            values[(i << 1u)] = CalculatePurchasedServerValue(purchasedServers[i], vm, NODE_A);
-            values[(i << 1u) + 1u] = CalculatePurchasedServerValue(purchasedServers[i], vm, NODE_B);
+            values[(i << 1u)] = CalculateDeployValue(purchasedServers[i], vm, NODE_A);
+            values[(i << 1u) + 1u] = CalculateDeployValue(purchasedServers[i], vm, NODE_B);
         }
 
-        double_t minValue = 1e10;
+        uint32_t minValue = 0xffffffff;
         bool exist = false;
         uint16_t idx = 0u;
         // 找到不为 0 的所有参数中的最小的那个
@@ -530,7 +512,7 @@ void Handler::DeployVirtualMachine(const uint16_t &purchasedServerIdx, const Req
     ++deployedVMNum;
     idDeployedVMMap[vmId] = n;
     purchasedServer.deployedVM.emplace(n);
-    purchasedServer.vacancyRate = CalculatePurchasedServerRate(purchasedServer, ALL);
+    purchasedServer.vacancyRate = CalculateVacancyRate(purchasedServer);
     deployedVM->purchasedServerId = purchasedServerId;
     deployedVM->vmIdx = vmIdx;
     deployedVM->vmId = vmId;
@@ -540,10 +522,10 @@ void Handler::DeployVirtualMachine(const uint16_t &purchasedServerIdx, const Req
 }
 
 uint16_t Handler::Purchase(const VirtualMachine &vm) {
-    uint8_t serverIdx;
-    // servers 已经根据 energyCost 从小到大排过序，找到刚好合适的 server 就退出
+    uint8_t serverIdx = N - 1u;
     for (uint8_t i = 0u; i < N; ++i) {
-        if (CheckCapacity(servers[i], vm)) {
+        Server &server = servers[i];
+        if (CheckCapacity(server, vm)) {
             serverIdx = i;
             break;
         }
@@ -594,7 +576,6 @@ uint16_t Handler::Purchase(const VirtualMachine &vm) {
     purchasedServer->remainCpuCoreB = (servers[serverIdx].cpuCore >> 1u);
     purchasedServer->remainMemorySizeA = (servers[serverIdx].memorySize >> 1u);
     purchasedServer->remainMemorySizeB = (servers[serverIdx].memorySize >> 1u);
-    purchasedServer->vacancyRate = CalculatePurchasedServerRate(*purchasedServer, ALL);
     purchasedServerIdxMap[id] = purchasedServers.size();
     purchasedServers.emplace_back(*purchasedServer);
 
@@ -631,8 +612,53 @@ void Handler::DeleteVirtualMachine(const int &vmId) {
     --deployedVMNum;
     idDeployedVMMap.erase(vmId);
     idVirtualMachineMap.erase(vmId);
+    purchasedServer.vacancyRate = CalculateVacancyRate(purchasedServer);
     purchasedServer.deployedVM.erase(deployedVMIdx);
-    purchasedServer.vacancyRate = CalculatePurchasedServerRate(purchasedServer, ALL);
+}
+
+void Handler::SortRequest(const uint16_t &day) {
+    // 将 requests 按照 cpu + mem 大小进行降序排列
+    std::vector<Request> &request = requests[day];
+    uint32_t j = 0u, R = request.size();
+    uint32_t left, right;
+    while (j < R) {
+        left = j;
+        while (left < R && !request[left].add) ++left;
+        right = left;
+        while (right < R && request[right].add) ++right;
+        std::sort(request.begin() + left, request.begin() + right, [this](const Request &a, const Request &b) {
+            VirtualMachine &vm1 = virtualMachines[a.vmIdx];
+            VirtualMachine &vm2 = virtualMachines[b.vmIdx];
+            return vm1.cpuCore + vm1.memorySize > vm2.cpuCore + vm2.memorySize;
+        });
+        j = right;
+    }
+}
+
+void Handler::SortDeployedVM(std::vector<uint32_t> &deployedVMIndexes) {
+    std::sort(deployedVMIndexes.begin(), deployedVMIndexes.end(), [this](const uint32_t &a, const uint32_t &b) {
+        const DeployedVirtualMachine &deployedVM1 = deployedVMs[a];
+        const DeployedVirtualMachine &deployedVM2 = deployedVMs[b];
+        const VirtualMachine &vm1 = virtualMachines[deployedVM1.vmIdx];
+        const VirtualMachine &vm2 = virtualMachines[deployedVM2.vmIdx];
+
+        if (deployedVM1.location && !deployedVM2.location) return true;
+        else if (!deployedVM1.location && deployedVM2.location) return false;
+        else return vm1.cpuCore + vm1.memorySize > vm2.cpuCore + vm2.memorySize;
+    });
+}
+
+LOCATION Handler::CheckCapacity(const PurchasedServer &purchasedServer, const VirtualMachine &vm) {
+    // 双节点
+    if (vm.nodeType) return CheckCapacity(purchasedServer, vm, ALL) ? ALL : NONE;
+
+    // 单节点
+    bool a = CheckCapacity(purchasedServer, vm, NODE_A);
+    bool b = CheckCapacity(purchasedServer, vm, NODE_B);
+    if (a && b) return ALL;
+    else if (a) return NODE_A;
+    else if (b) return NODE_B;
+    else return NONE;
 }
 
 bool Handler::CheckCapacity(const PurchasedServer &purchasedServer, const VirtualMachine &vm, const LOCATION &location) {
@@ -656,20 +682,17 @@ inline bool Handler::CheckCapacity(const Server &server, const VirtualMachine &v
            (server.cpuCore >> 1u) >= vm.cpuCore && (server.memorySize >> 1u) >= vm.memorySize;
 }
 
-double_t Handler::CalculatePurchasedServerRate(const PurchasedServer &purchasedServer, const LOCATION &location) {
-    switch (location) {
-        case NODE_A:
-            return CalculateValue(purchasedServer.remainCpuCoreA, purchasedServer.remainMemorySizeA);
-        case NODE_B:
-            return CalculateValue(purchasedServer.remainMemorySizeB, purchasedServer.remainMemorySizeB);
-        case ALL:
-            return CalculateValue(purchasedServer.remainCpuCoreA + purchasedServer.remainCpuCoreB, purchasedServer.remainMemorySizeA + purchasedServer.remainMemorySizeB);
-        default:
-            return 0;
-    }
+uint8_t Handler::CalculateVacancyRate(const PurchasedServer &purchasedServer) {
+    Server &server = servers[purchasedServer.serverIdx];
+    uint16_t serverCpuCore = server.cpuCore;
+    uint16_t serverMemorySize = server.memorySize;
+    uint16_t cpuCore = purchasedServer.remainCpuCoreA + purchasedServer.remainCpuCoreB;
+    uint16_t memorySize = purchasedServer.remainMemorySizeA + purchasedServer.remainMemorySizeB;
+    // return (uint8_t) (100u * cpuCore / serverCpuCore + 100u * memorySize / serverMemorySize);
+    return (uint8_t) ((100u * (12u * cpuCore + memorySize)) / (12u * serverCpuCore + serverMemorySize));
 }
 
-double_t Handler::CalculatePurchasedServerValue(const PurchasedServer &purchasedServer, const VirtualMachine &vm, const LOCATION &location) {
+uint32_t Handler::CalculatePurchaseValue(const PurchasedServer &purchasedServer, const VirtualMachine &vm, const LOCATION &location) {
     uint16_t energyCost = servers[purchasedServer.serverIdx].energyCost;
     uint16_t cpuCore = vm.cpuCore;
     uint16_t memorySize = vm.memorySize;
@@ -681,29 +704,98 @@ double_t Handler::CalculatePurchasedServerValue(const PurchasedServer &purchased
         uint16_t remainMemorySizeA = purchasedServer.remainMemorySizeA - halfMemorySize;
         uint16_t remainCpuCoreB = purchasedServer.remainCpuCoreB - halfCpuCore;
         uint16_t remainMemorySizeB = purchasedServer.remainMemorySizeB - halfMemorySize;
-        return CalculateValue(remainCpuCoreA + remainCpuCoreB, remainMemorySizeA + remainMemorySizeB, energyCost);
+        return CalculatePurchaseValue(remainCpuCoreA + remainCpuCoreB, remainMemorySizeA + remainMemorySizeB, energyCost);
     }
 
     if (location == NODE_A && CheckCapacity(purchasedServer, vm, location)) {
         uint16_t remainCpuCoreA = purchasedServer.remainCpuCoreA - cpuCore;
         uint16_t remainMemorySizeA = purchasedServer.remainMemorySizeA - memorySize;
-        return CalculateValue(remainCpuCoreA, remainMemorySizeA, energyCost);
+        return CalculatePurchaseValue(remainCpuCoreA, remainMemorySizeA, energyCost);
     }
 
     if (location == NODE_B && CheckCapacity(purchasedServer, vm, location)) {
         uint16_t remainCpuCoreB = purchasedServer.remainCpuCoreB - cpuCore;
         uint16_t remainMemorySizeB = purchasedServer.remainMemorySizeB - memorySize;
-        return CalculateValue(remainCpuCoreB, remainMemorySizeB, energyCost);
+        return CalculatePurchaseValue(remainCpuCoreB, remainMemorySizeB, energyCost);
     }
 
     return 0;
 }
 
-inline double_t Handler::CalculateValue(uint16_t cpuCore, uint16_t memorySize) {
-    return 0.75f * (double_t) cpuCore + 0.25f * (double_t) memorySize;
+uint32_t Handler::CalculateMigrateValue(const PurchasedServer &purchasedServer, const VirtualMachine &vm, const LOCATION &location) {
+    uint16_t energyCost = servers[purchasedServer.serverIdx].energyCost;
+    uint16_t cpuCore = vm.cpuCore;
+    uint16_t memorySize = vm.memorySize;
+
+    if (location == ALL && CheckCapacity(purchasedServer, vm, location)) {
+        uint16_t halfCpuCore = cpuCore >> 1u;
+        uint16_t halfMemorySize = memorySize >> 1u;
+        uint16_t remainCpuCoreA = purchasedServer.remainCpuCoreA - halfCpuCore;
+        uint16_t remainMemorySizeA = purchasedServer.remainMemorySizeA - halfMemorySize;
+        uint16_t remainCpuCoreB = purchasedServer.remainCpuCoreB - halfCpuCore;
+        uint16_t remainMemorySizeB = purchasedServer.remainMemorySizeB - halfMemorySize;
+        return CalculateMigrateValue(remainCpuCoreA + remainCpuCoreB, remainMemorySizeA + remainMemorySizeB, energyCost);
+    }
+
+    if (location == NODE_A && CheckCapacity(purchasedServer, vm, location)) {
+        uint16_t remainCpuCoreA = purchasedServer.remainCpuCoreA - cpuCore;
+        uint16_t remainMemorySizeA = purchasedServer.remainMemorySizeA - memorySize;
+        return CalculateMigrateValue(remainCpuCoreA, remainMemorySizeA, energyCost);
+    }
+
+    if (location == NODE_B && CheckCapacity(purchasedServer, vm, location)) {
+        uint16_t remainCpuCoreB = purchasedServer.remainCpuCoreB - cpuCore;
+        uint16_t remainMemorySizeB = purchasedServer.remainMemorySizeB - memorySize;
+        return CalculateMigrateValue(remainCpuCoreB, remainMemorySizeB, energyCost);
+    }
+
+    return 0u;
 }
 
-inline double_t Handler::CalculateValue(uint16_t cpuCore, uint16_t memorySize, uint16_t energyCost) {
-//     return 0.75f * (double_t) cpuCore + 0.25f * (double_t) memorySize;
-    return 0.75f * (double_t) cpuCore + 0.23f * (double_t) memorySize + 0.02f * (double_t) energyCost;
+uint32_t Handler::CalculateDeployValue(const PurchasedServer &purchasedServer, const VirtualMachine &vm, const LOCATION &location) {
+    uint16_t energyCost = servers[purchasedServer.serverIdx].energyCost;
+    uint16_t cpuCore = vm.cpuCore;
+    uint16_t memorySize = vm.memorySize;
+
+    if (location == ALL && CheckCapacity(purchasedServer, vm, location)) {
+        uint16_t halfCpuCore = cpuCore >> 1u;
+        uint16_t halfMemorySize = memorySize >> 1u;
+        uint16_t remainCpuCoreA = purchasedServer.remainCpuCoreA - halfCpuCore;
+        uint16_t remainMemorySizeA = purchasedServer.remainMemorySizeA - halfMemorySize;
+        uint16_t remainCpuCoreB = purchasedServer.remainCpuCoreB - halfCpuCore;
+        uint16_t remainMemorySizeB = purchasedServer.remainMemorySizeB - halfMemorySize;
+        return CalculateDeployValue(remainCpuCoreA + remainCpuCoreB, remainMemorySizeA + remainMemorySizeB, energyCost);
+    }
+
+    if (location == NODE_A && CheckCapacity(purchasedServer, vm, location)) {
+        uint16_t remainCpuCoreA = purchasedServer.remainCpuCoreA - cpuCore;
+        uint16_t remainMemorySizeA = purchasedServer.remainMemorySizeA - memorySize;
+        return CalculateDeployValue(remainCpuCoreA, remainMemorySizeA, energyCost);
+    }
+
+    if (location == NODE_B && CheckCapacity(purchasedServer, vm, location)) {
+        uint16_t remainCpuCoreB = purchasedServer.remainCpuCoreB - cpuCore;
+        uint16_t remainMemorySizeB = purchasedServer.remainMemorySizeB - memorySize;
+        return CalculateDeployValue(remainCpuCoreB, remainMemorySizeB, energyCost);
+    }
+
+    return 0u;
+}
+
+inline uint32_t Handler::CalculatePurchaseValue(uint16_t cpuCore, uint16_t memorySize, uint16_t energyCost) const {
+    return purchaseCpuCoreParameter * (uint32_t) cpuCore + purchaseMemorySizeParameter * (uint32_t) memorySize + purchaseEnergyCostParameter * (uint32_t) energyCost;
+}
+
+inline uint32_t Handler::CalculateMigrateValue(uint16_t cpuCore, uint16_t memorySize, uint16_t energyCost) const {
+    return migrateCpuCoreParameter * (uint32_t) cpuCore + migrateMemorySizeParameter * (uint32_t) memorySize + migrateEnergyCostParameter * (uint32_t) energyCost;
+}
+
+inline uint32_t Handler::CalculateDeployValue(uint16_t cpuCore, uint16_t memorySize, uint16_t energyCost) const {
+    return deployCpuCoreParameter * (uint32_t) cpuCore + deployMemorySizeParameter * (uint32_t) memorySize + deployEnergyCostParameter * (uint32_t) energyCost;
+}
+
+inline void Handler::OutputLog(const string &log) {
+#ifdef TEST
+    LOG << log << std::endl;
+#endif
 }
